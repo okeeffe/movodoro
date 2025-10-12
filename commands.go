@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/term"
 )
 
 var appConfig = DefaultConfig()
@@ -550,14 +552,33 @@ func handleInteractive(args []string) {
 	filters := FilterOptions{}
 
 	for {
-		// Select a snack
-		snack, err := SelectSnack(snacks, filters, maxDailyRPEDefault)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error selecting snack: %v\n", err)
-			os.Exit(1)
+		var snack *Snack
+
+		// Try to load saved snack from previous session
+		savedCode, err := loadCurrentSnack()
+		if err == nil && savedCode != "" {
+			// Find the saved snack
+			for i := range snacks {
+				if snacks[i].FullCode == savedCode {
+					snack = &snacks[i]
+					fmt.Println("📥 Resuming saved snack...")
+					fmt.Println()
+					break
+				}
+			}
 		}
 
-		// Save as current snack
+		// If no saved snack or couldn't find it, select a new one
+		if snack == nil {
+			selected, err := SelectSnack(snacks, filters, maxDailyRPEDefault)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error selecting snack: %v\n", err)
+				os.Exit(1)
+			}
+			snack = selected
+		}
+
+		// Save as current snack (overwrites existing or saves new)
 		if err := saveCurrentSnack(snack.FullCode); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not save current snack: %v\n", err)
 		}
@@ -571,22 +592,25 @@ func handleInteractive(args []string) {
 		switch choice {
 		case "d": // Done
 			handleDoneInteractive(snack)
-			return // Exit after marking done
+			os.Remove(appConfig.CurrentPath) // Clear saved snack
+			return                           // Exit after marking done
 
 		case "s": // Skip
 			handleSkipInteractive(snack)
-			filters.SkipDailies = false // Reset skip dailies flag
+			os.Remove(appConfig.CurrentPath) // Clear saved snack
+			filters.SkipDailies = false      // Reset skip dailies flag
 			// Continue loop to get next snack
 
 		case "x": // Skip dailies (only if everyday snack)
 			if snack.EveryDay {
 				fmt.Printf("\n⏭️  Skipping dailies for now...\n")
+				os.Remove(appConfig.CurrentPath) // Clear saved snack
 				filters.SkipDailies = true
 				// Continue loop to get next snack (will reset flag after)
 			}
 
 		case "q": // Quit
-			fmt.Println("\n👋 Saved for later. Run 'movodoro done' when complete.")
+			fmt.Println("\n👋 Saved for later. Run 'movodoro' to resume.")
 			return
 
 		default:
@@ -628,13 +652,55 @@ func getInteractiveChoice(isEveryday bool) string {
 	fmt.Println("\n  (Press 'h' for help: movodoro --help)")
 	fmt.Print("\nChoice: ")
 
-	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
+	// Put terminal in raw mode for single-key input
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
-		return "q" // Treat error as quit
+		// Fallback to regular input if terminal doesn't support raw mode
+		reader := bufio.NewReader(os.Stdin)
+		input, _ := reader.ReadString('\n')
+		return strings.TrimSpace(strings.ToLower(input))
 	}
+	defer term.Restore(int(os.Stdin.Fd()), oldState)
 
-	return strings.TrimSpace(strings.ToLower(input))
+	// Read single character
+	buf := make([]byte, 1)
+	for {
+		_, err := os.Stdin.Read(buf)
+		if err != nil {
+			fmt.Println()
+			return "q"
+		}
+
+		char := strings.ToLower(string(buf[0]))
+
+		// Validate input
+		validChars := []string{"d", "s", "q"}
+		if isEveryday {
+			validChars = append(validChars, "x")
+		}
+
+		valid := false
+		for _, v := range validChars {
+			if char == v {
+				valid = true
+				break
+			}
+		}
+
+		if valid {
+			fmt.Println(char) // Echo the character
+			return char
+		}
+
+		// Handle Ctrl+C (ASCII 3)
+		if buf[0] == 3 {
+			fmt.Println("^C")
+			return "q"
+		}
+
+		// Invalid key - show error but keep prompt open
+		fmt.Print("\r\033[KInvalid choice. Choice: ")
+	}
 }
 
 // handleDoneInteractive handles completing a snack in interactive mode
