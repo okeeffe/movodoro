@@ -11,11 +11,12 @@ import (
 
 // LoadSnacks loads all snack definitions from YAML files in the movos directory
 func LoadSnacks() ([]Snack, error) {
-	movosDir := "movos"
+	cfg := DefaultConfig()
+	movosDir := cfg.MovosDir
 
 	// Check if movos directory exists
 	if _, err := os.Stat(movosDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("movos directory not found in current directory")
+		return nil, fmt.Errorf("movos directory not found: %s", movosDir)
 	}
 
 	// Find all .yaml files
