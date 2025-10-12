@@ -409,4 +409,4 @@ This is a personal project, but feel free to fork and adapt to your needs!
 
 ## License
 
-[Your license here]
+MIT License - see [LICENSE](LICENSE) for details.
