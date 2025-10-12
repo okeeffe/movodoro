@@ -28,6 +28,7 @@ func handleGet(args []string) {
 		maxDuration int
 		minRPE      int
 		maxRPE      int
+		skipDailies bool
 	)
 
 	fs.StringVar(&tags, "tags", "", "Filter by tags (comma-separated)")
@@ -44,6 +45,7 @@ func handleGet(args []string) {
 	fs.IntVar(&minRPE, "r", 0, "Minimum RPE")
 	fs.IntVar(&maxRPE, "max-rpe", 0, "Maximum RPE")
 	fs.IntVar(&maxRPE, "R", 0, "Maximum RPE")
+	fs.BoolVar(&skipDailies, "skip-dailies", false, "Skip everyday snacks priority")
 
 	fs.Parse(args)
 
@@ -62,6 +64,7 @@ func handleGet(args []string) {
 		ExactDuration: duration,
 		MinRPE:        minRPE,
 		MaxRPE:        maxRPE,
+		SkipDailies:   skipDailies,
 	}
 
 	if tags != "" {
@@ -532,4 +535,166 @@ func handleEveryday(args []string) {
 	}
 
 	fmt.Printf("Summary: %d/%d everyday snacks completed\n", completed, len(everydaySnacks))
+}
+
+// handleInteractive implements the interactive mode (default when running `movodoro`)
+func handleInteractive(args []string) {
+	// Load snacks
+	snacks, err := LoadSnacks()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading snacks: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Start with default filters
+	filters := FilterOptions{}
+
+	for {
+		// Select a snack
+		snack, err := SelectSnack(snacks, filters, maxDailyRPEDefault)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error selecting snack: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Save as current snack
+		if err := saveCurrentSnack(snack.FullCode); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not save current snack: %v\n", err)
+		}
+
+		// Display the snack
+		displaySnackInteractive(snack)
+
+		// Get user choice
+		choice := getInteractiveChoice(snack.EveryDay)
+
+		switch choice {
+		case "d": // Done
+			handleDoneInteractive(snack)
+			return // Exit after marking done
+
+		case "s": // Skip
+			handleSkipInteractive(snack)
+			filters.SkipDailies = false // Reset skip dailies flag
+			// Continue loop to get next snack
+
+		case "x": // Skip dailies (only if everyday snack)
+			if snack.EveryDay {
+				fmt.Printf("\n⏭️  Skipping dailies for now...\n")
+				filters.SkipDailies = true
+				// Continue loop to get next snack (will reset flag after)
+			}
+
+		case "q": // Quit
+			fmt.Println("\n👋 Saved for later. Run 'movodoro done' when complete.")
+			return
+
+		default:
+			fmt.Println("Invalid choice, please try again.")
+		}
+	}
+}
+
+// displaySnackInteractive displays a snack in interactive mode
+func displaySnackInteractive(snack *Snack) {
+	fmt.Println()
+	fmt.Println("═══════════════════════════════════════")
+	fmt.Printf("  %s\n", snack.Title)
+	fmt.Println("═══════════════════════════════════════")
+	fmt.Println()
+
+	fmt.Println(snack.Description)
+	fmt.Println()
+
+	fmt.Printf("⏱️  Duration: %d-%d minutes\n", snack.DurationMin, snack.DurationMax)
+	fmt.Printf("💪 RPE: %d/10\n", snack.EffectiveRPE)
+	fmt.Printf("🏷️  Code: %s\n", snack.FullCode)
+
+	if len(snack.AllTags) > 0 {
+		fmt.Printf("🔖 Tags: %s\n", strings.Join(snack.AllTags, ", "))
+	}
+	fmt.Println()
+}
+
+// getInteractiveChoice prompts user for action choice
+func getInteractiveChoice(isEveryday bool) string {
+	fmt.Println("What would you like to do?")
+	fmt.Println("  [d] Done (log completion)")
+	fmt.Println("  [s] Skip (try another snack)")
+	if isEveryday {
+		fmt.Println("  [x] Skip dailies (get non-daily snack)")
+	}
+	fmt.Println("  [q] Quit (save for later)")
+	fmt.Println("\n  (Press 'h' for help: movodoro --help)")
+	fmt.Print("\nChoice: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return "q" // Treat error as quit
+	}
+
+	return strings.TrimSpace(strings.ToLower(input))
+}
+
+// handleDoneInteractive handles completing a snack in interactive mode
+func handleDoneInteractive(snack *Snack) {
+	// Prompt for actual duration
+	defaultDuration := snack.GetDefaultDuration()
+	fmt.Printf("\nHow many minutes did you spend? (default: %d): ", defaultDuration)
+
+	reader := bufio.NewReader(os.Stdin)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+
+	duration := defaultDuration
+	if input != "" {
+		parsed, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid duration, using default: %d\n", defaultDuration)
+		} else {
+			duration = parsed
+		}
+	}
+
+	// Create history entry
+	entry := HistoryEntry{
+		Timestamp: time.Now(),
+		Code:      snack.FullCode,
+		Status:    "done",
+		Duration:  duration,
+		RPE:       snack.EffectiveRPE,
+	}
+
+	// Save to history
+	if err := AppendTodayLog(appConfig.LogsDir, entry); err != nil {
+		fmt.Fprintf(os.Stderr, "Error saving to history: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n✅ Marked '%s' as completed (%d minutes, RPE %d)\n", snack.Title, duration, snack.EffectiveRPE)
+
+	// Show updated daily stats
+	stats, _ := GetTodayStatsDaily(appConfig.LogsDir)
+	fmt.Printf("📊 Today: %d snacks, %d minutes, %d RPE\n\n", stats.TotalSnacks, stats.TotalDuration, stats.TotalRPE)
+}
+
+// handleSkipInteractive handles skipping a snack in interactive mode
+func handleSkipInteractive(snack *Snack) {
+	// Create history entry with 0 duration and RPE
+	entry := HistoryEntry{
+		Timestamp: time.Now(),
+		Code:      snack.FullCode,
+		Status:    "skip",
+		Duration:  0,
+		RPE:       0,
+	}
+
+	// Save to history
+	if err := AppendTodayLog(appConfig.LogsDir, entry); err != nil {
+		fmt.Fprintf(os.Stderr, "Error saving to history: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n⏭️  Skipped '%s'\n", snack.Title)
 }

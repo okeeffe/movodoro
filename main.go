@@ -8,9 +8,10 @@ import (
 const version = "0.1.0"
 
 func main() {
+	// If no command provided, enter interactive mode
 	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(1)
+		handleInteractive([]string{})
+		return
 	}
 
 	command := os.Args[1]

@@ -51,6 +51,7 @@ type FilterOptions struct {
 	ExactDuration  int
 	MinRPE         int
 	MaxRPE         int
+	SkipDailies    bool // If true, ignore everyday snacks priority
 }
 
 // DailyStats contains statistics for a given day

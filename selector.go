@@ -38,6 +38,18 @@ func SelectSnack(snacks []Snack, filters FilterOptions, maxDailyRPE int) (*Snack
 		return nil, fmt.Errorf("no snacks match the specified filters")
 	}
 
+	// Apply everyday snacks priority (unless explicitly skipped)
+	if !filters.SkipDailies {
+		everydayCandidates, err := filterToIncompleteEveryday(candidates, cfg.LogsDir)
+		if err != nil {
+			return nil, err
+		}
+		// If there are incomplete everyday snacks, use only those
+		if len(everydayCandidates) > 0 {
+			candidates = everydayCandidates
+		}
+	}
+
 	// Remove snacks that have hit their max_per_day limit
 	candidates, err = filterByFrequency(candidates)
 	if err != nil {
@@ -119,6 +131,31 @@ func filterSnacks(snacks []Snack, filters FilterOptions) []Snack {
 	}
 
 	return filtered
+}
+
+// filterToIncompleteEveryday returns only everyday snacks that haven't been completed today
+func filterToIncompleteEveryday(snacks []Snack, logsDir string) ([]Snack, error) {
+	var incomplete []Snack
+
+	for _, snack := range snacks {
+		// Only consider everyday snacks
+		if !snack.EveryDay {
+			continue
+		}
+
+		// Check if done today
+		doneToday, _, err := GetCountTodayDaily(logsDir, snack.FullCode)
+		if err != nil {
+			return nil, err
+		}
+
+		// Include if not done yet today
+		if doneToday == 0 {
+			incomplete = append(incomplete, snack)
+		}
+	}
+
+	return incomplete, nil
 }
 
 // filterByFrequency removes snacks that have hit their daily/weekly limits

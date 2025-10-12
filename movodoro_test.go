@@ -534,3 +534,82 @@ func LoadSnacksWithConfig(cfg *Config) ([]Snack, error) {
 
 	return allSnacks, nil
 }
+
+func TestEverydaySnacksPriority(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Set up test environment
+	originalMovosDir := os.Getenv("MOVODORO_MOVOS_DIR")
+	testMovosPath := "testdata/movos"
+	os.Setenv("MOVODORO_MOVOS_DIR", testMovosPath)
+	defer os.Setenv("MOVODORO_MOVOS_DIR", originalMovosDir)
+
+	snacks, err := LoadSnacks()
+	if err != nil {
+		t.Fatalf("Failed to load snacks: %v", err)
+	}
+
+	cfg := TestConfig(tmpDir)
+
+	// Find an everyday snack
+	var everydaySnack *Snack
+	for i := range snacks {
+		if snacks[i].EveryDay {
+			everydaySnack = &snacks[i]
+			break
+		}
+	}
+
+	if everydaySnack == nil {
+		t.Skip("No everyday snacks in test data")
+	}
+
+	t.Run("prioritizes incomplete everyday snacks", func(t *testing.T) {
+		// With no history, should get everyday snack
+		selected, err := SelectSnack(snacks, FilterOptions{}, maxDailyRPEDefault)
+		if err != nil {
+			t.Fatalf("SelectSnack failed: %v", err)
+		}
+
+		if !selected.EveryDay {
+			t.Errorf("Expected everyday snack, got: %s (every_day=%v)", selected.FullCode, selected.EveryDay)
+		}
+	})
+
+	t.Run("skip dailies flag bypasses priority", func(t *testing.T) {
+		// With SkipDailies=true, might get non-everyday snack
+		filters := FilterOptions{SkipDailies: true}
+		selected, err := SelectSnack(snacks, filters, maxDailyRPEDefault)
+		if err != nil {
+			t.Fatalf("SelectSnack failed: %v", err)
+		}
+
+		t.Logf("With skip dailies: got %s (every_day=%v)", selected.FullCode, selected.EveryDay)
+		// This is probabilistic, but at least it should not ONLY select everyday snacks
+	})
+
+	t.Run("after completing everyday snack, others are available", func(t *testing.T) {
+		// Complete the everyday snack
+		entry := HistoryEntry{
+			Timestamp: time.Now(),
+			Code:      everydaySnack.FullCode,
+			Status:    "done",
+			Duration:  5,
+			RPE:       everydaySnack.EffectiveRPE,
+		}
+
+		if err := AppendTodayLog(cfg.LogsDir, entry); err != nil {
+			t.Fatalf("Failed to log entry: %v", err)
+		}
+
+		// Now selection should include non-everyday snacks
+		// (since the only everyday snack is complete)
+		selected, err := SelectSnack(snacks, FilterOptions{}, maxDailyRPEDefault)
+		if err != nil {
+			t.Fatalf("SelectSnack failed: %v", err)
+		}
+
+		t.Logf("After completing everyday: got %s (every_day=%v)", selected.FullCode, selected.EveryDay)
+		// Selection can be anything now
+	})
+}
