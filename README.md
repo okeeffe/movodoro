@@ -79,26 +79,57 @@ Movodoro stores data in `~/.movodoro/`:
 
 ## Quick Start
 
-1. **Get a random movement snack:**
-   ```bash
-   movodoro get
-   ```
+### Interactive Mode (Default)
 
-2. **Complete the snack:**
-   ```bash
-   movodoro done
-   # You'll be prompted for actual duration
-   ```
+Simply run `movodoro` to enter the interactive flow:
 
-3. **View your daily report:**
-   ```bash
-   movodoro report
-   ```
+```bash
+$ movodoro
 
-4. **Get a recovery snack (low intensity):**
-   ```bash
-   movodoro get -R 2
-   ```
+═══════════════════════════════════════
+  Box breathing
+═══════════════════════════════════════
+
+Standing or kneeling breath work...
+
+⏱️  Duration: 3-5 minutes
+💪 RPE: 1/10
+🏷️  Code: RB-box-breathing
+
+What would you like to do?
+  [d] Done (log completion)
+  [s] Skip (try another snack)
+  [q] Quit (save for later)
+
+  (Press 'h' for help: movodoro --help)
+
+Choice: d
+How many minutes did you spend? (default: 4): 5
+
+✅ Marked 'Box breathing' as completed (5 minutes, RPE 1)
+📊 Today: 1 snacks, 5 minutes, 1 RPE
+```
+
+**The Flow:**
+- 🎯 **[d] Done** - Log completion, prompted for duration, then exit
+- ⏭️ **[s] Skip** - Log skip, get another snack (stays in interactive mode)
+- 🚪 **[q] Quit** - Save current snack, exit (can run `movodoro done` later)
+- ❌ **[x] Skip dailies** - Only shown for everyday snacks, gets non-daily snack
+
+**Ctrl+C** works as expected (same as quit).
+
+### Command Line Mode
+
+All individual commands still work for scripting/automation:
+
+```bash
+movodoro get                # Get a snack (non-interactive)
+movodoro done               # Mark current snack as done
+movodoro skip               # Skip current snack
+movodoro report             # View today's report
+movodoro everyday           # Check daily essential snacks
+movodoro config             # Show configuration
+```
 
 ## Creating Your Movement Snacks (Movos)
 
@@ -137,7 +168,7 @@ snacks:
     rpe: 1              # Override default_rpe if needed
     max_per_day: 2      # Can be done twice per day
     weight: 1.5         # Snack-specific weight multiplier
-    every_day: true     # Gets 10x boost in selection
+    every_day: true     # Prioritized daily (shown first until complete)
     tags: []            # Additional tags beyond category tags
 
   - code: deep-breath
@@ -171,7 +202,7 @@ snacks:
 - **max_per_day**: Maximum times per day (0 = unlimited)
 - **max_per_week**: Maximum times per week (optional)
 - **weight**: Snack-specific weight multiplier
-- **every_day**: Boolean, gets 10x selection boost
+- **every_day**: Boolean, **prioritized daily** (shown first until done each day)
 - **tags**: Additional tags specific to this snack
 
 ### Tag Conventions
@@ -304,17 +335,57 @@ movodoro version
 
 ## How Selection Works
 
-Movodoro uses a weighted random selection algorithm with multiple boost factors:
+Movodoro uses a priority-based selection system focused on daily essentials first:
 
-### Base Weight
+### Everyday Snacks Priority
+
+**Key Concept:** Snacks marked with `every_day: true` are prioritized until you complete them each day.
+
+**How it works:**
+1. Check for incomplete everyday snacks today
+2. If any exist: Only select from those (weighted among themselves)
+3. If all complete: Select from the full snack pool
+
+**Example daily flow:**
+```bash
+# Morning - 2 everyday snacks incomplete
+movodoro          # → Meditation (everyday snack)
+# [s] Skip
+movodoro          # → Meditation again (still incomplete)
+# [x] Skip dailies
+movodoro          # → Kettlebell swings (escaped to non-daily)
+# Exit and come back later
+movodoro          # → Meditation (back to incomplete dailies)
+# [d] Done - mark complete
+movodoro          # → Hip circles (last everyday snack)
+# [d] Done - mark complete
+movodoro          # → Now random from full pool
+```
+
+### Escape Hatch: Skip Dailies
+
+When viewing an everyday snack, press **[x] Skip dailies** to temporarily get a non-daily snack. This:
+- Does NOT log a skip
+- Gets you one snack from the full pool
+- Next request returns to everyday priority (if still incomplete)
+
+Or use the `--skip-dailies` flag:
+```bash
+movodoro get --skip-dailies    # Bypass everyday priority
+```
+
+### Within-Category Weight System
+
+Once the candidate pool is determined, weighted random selection applies:
+
+**Base Weight:**
 Each snack starts with its `weight` value (default: 1.0), multiplied by the category's `weight`.
 
-### Boosts Applied
-1. **Every-day boost (10x)**: Snacks marked `every_day: true`
-2. **Never-done boost (3x)**: Snacks you've never completed
-3. **Recency boost (2x)**: Snacks not done in 7+ days
+**Boosts Applied:**
+1. **Never-done boost (3x)**: Snacks you've never completed
+2. **Recency boost (2x)**: Snacks not done in 7+ days
 
-### Filters
+**Filters:**
 - **Tags**: Only snacks matching ALL specified tags
 - **Duration**: Range overlap (snack's [min, max] overlaps with filter)
 - **RPE**: Min/max thresholds
@@ -367,11 +438,13 @@ Rate of Perceived Exertion (1-10):
 
 ## Tips
 
-1. **Start your day with breath work**: Use `-t breathx -R 2` for morning reset
-2. **Heavy work in the morning**: Use `-r 6` when fresh
-3. **Recovery in afternoon**: Let auto-recovery kick in, or manually use `-R 2`
-4. **Track in markdown**: Use `movodoro report --md >> workout-log.md` to append to your training log
-5. **Tag your equipment**: Filter by what you have available (`-t kbx` when at home gym)
+1. **Mark 2-3 movements as `every_day: true`**: These become your daily non-negotiables (breath work, fundamental patterns, etc.)
+2. **Use interactive mode**: Just type `movodoro` and let it guide you through your dailies
+3. **Skip dailies when pressed for time**: Use `[x]` to grab a quick 3-min snack when you can't do your 10-min meditation
+4. **Check your progress**: Run `movodoro everyday` to see what you've completed
+5. **Recovery in afternoon**: Let auto-recovery kick in when you hit RPE 30, or manually use `movodoro get -R 2`
+6. **Track in markdown**: Use `movodoro report --md >> workout-log.md` to append to your training log
+7. **Non-interactive for scripts**: Use `movodoro get -t kbx` for automation or specific filters
 
 ## Development
 
