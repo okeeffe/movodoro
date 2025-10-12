@@ -133,6 +133,8 @@ movodoro config             # Show configuration
 
 ## Creating Your Movement Snacks (Movos)
 
+If you'd like to see mine, for reference, you can see them [here](https://github.com/okeeffe/movodoro-movos).
+
 ### Directory Structure
 
 Movement snacks are defined in YAML files in the `movos/` directory:
