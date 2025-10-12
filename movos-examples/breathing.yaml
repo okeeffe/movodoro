@@ -1,0 +1,41 @@
+# Breathing & Recovery
+category: Breathing & Recovery
+code: BR
+weight: 1.5
+default_rpe: 1
+tags: [breathx, recovx]
+
+snacks:
+  - code: box-breathing
+    title: Box breathing
+    description: |
+      Find a comfortable seated or standing position.
+      Breathe in a 4-4-4-4 pattern:
+      - Inhale for 4 counts
+      - Hold for 4 counts
+      - Exhale for 4 counts
+      - Hold for 4 counts
+      Repeat for the full duration.
+    duration_min: 3
+    duration_max: 5
+    rpe: 1
+    max_per_day: 3
+    weight: 1.5
+    every_day: true
+    tags: []
+
+  - code: deep-breathing
+    title: Deep belly breathing
+    description: |
+      Sit or lie down comfortably.
+      Place one hand on your chest, one on your belly.
+      Breathe deeply into your belly, feeling it rise.
+      Exhale slowly and completely.
+      Focus on slow, deep breaths.
+    duration_min: 2
+    duration_max: 4
+    rpe: 1
+    max_per_day: 2
+    weight: 1.0
+    every_day: false
+    tags: []

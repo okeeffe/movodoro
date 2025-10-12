@@ -1,0 +1,37 @@
+# Mobility & Stretching
+category: Mobility & Stretching
+code: MOB
+weight: 1.0
+default_rpe: 3
+tags: [mobilityx, stretchx]
+
+snacks:
+  - code: wrist-mobility
+    title: Wrist circles and stretches
+    description: |
+      1. Wrist circles: 10 each direction
+      2. Wrist flexion/extension stretches: 30 seconds each
+      3. Prayer stretch: 30 seconds
+      4. Reverse prayer stretch: 30 seconds
+    duration_min: 3
+    duration_max: 5
+    rpe: 2
+    max_per_day: 0
+    weight: 1.0
+    every_day: false
+    tags: [bodyx]
+
+  - code: hip-circles
+    title: Hip circles and leg swings
+    description: |
+      1. Standing hip circles: 10 each direction, each leg
+      2. Forward leg swings: 10 each leg
+      3. Lateral leg swings: 10 each leg
+      4. Hip CAR (controlled articular rotation): 5 each direction
+    duration_min: 5
+    duration_max: 7
+    rpe: 3
+    max_per_day: 2
+    weight: 1.2
+    every_day: true
+    tags: [bodyx]

@@ -1,0 +1,54 @@
+# Bodyweight Strength
+category: Bodyweight Strength
+code: BWS
+weight: 1.0
+default_rpe: 5
+tags: [strengthx, bodyx]
+
+snacks:
+  - code: pushup-squats
+    title: Push-ups and squats
+    description: |
+      EMOM (Every Minute on the Minute) for 5 minutes:
+      - 10 push-ups (scale as needed)
+      - 10 bodyweight squats
+      Rest remainder of minute, repeat next minute.
+    duration_min: 5
+    duration_max: 5
+    rpe: 6
+    max_per_day: 2
+    weight: 1.0
+    every_day: false
+    tags: []
+
+  - code: plank-hold
+    title: Plank variations
+    description: |
+      3 rounds:
+      - Front plank: 30-45 seconds
+      - Right side plank: 20-30 seconds
+      - Left side plank: 20-30 seconds
+      Rest 30 seconds between rounds.
+    duration_min: 5
+    duration_max: 7
+    rpe: 5
+    max_per_day: 1
+    weight: 0.8
+    every_day: false
+    tags: [corex]
+
+  - code: wall-sits
+    title: Wall sit holds
+    description: |
+      Find a clear wall space.
+      3-5 rounds of wall sits:
+      - Hold for 30-60 seconds
+      - Rest for 30 seconds
+      Focus on maintaining 90-degree knee angle.
+    duration_min: 3
+    duration_max: 5
+    rpe: 4
+    max_per_day: 1
+    weight: 0.7
+    every_day: false
+    tags: []

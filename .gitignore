@@ -1,0 +1,28 @@
+# Binary
+movodoro
+
+# Local movos directory (users configure their own)
+movos/
+
+# User data
+.movodoro/
+
+# Test artifacts
+testdata/logs/
+testdata/test-movos/
+
+# Go
+*.test
+*.out
+coverage.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

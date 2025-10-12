@@ -1,0 +1,208 @@
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
+
+const (
+	everyDayBoost      = 10.0 // Boost for every_day snacks
+	neverDoneBoost     = 3.0  // Boost for snacks never completed
+	recencyBoost       = 2.0  // Boost for snacks not done in 7+ days
+	recencyDays        = 7    // Days threshold for recency boost
+	autoRecoveryMaxRPE = 2    // What the max RPE ends up as if we hit the daily threshold
+)
+
+// SelectSnack selects a random snack based on weights and constraints
+func SelectSnack(snacks []Snack, filters FilterOptions, maxDailyRPE int) (*Snack, error) {
+	cfg := DefaultConfig()
+
+	// Get today's stats
+	todayStats, err := GetTodayStatsDaily(cfg.LogsDir)
+	if err != nil {
+		return nil, fmt.Errorf("error loading today's stats: %w", err)
+	}
+
+	// Check if we're in auto-recovery mode
+	inRecoveryMode := todayStats.TotalRPE >= maxDailyRPE
+	if inRecoveryMode {
+		// Override max RPE to 2 for recovery
+		filters.MaxRPE = autoRecoveryMaxRPE
+		fmt.Println("🔋 Auto-recovery mode: limiting to RPE ≤ 2")
+	}
+
+	// Filter snacks
+	candidates := filterSnacks(snacks, filters)
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("no snacks match the specified filters")
+	}
+
+	// Remove snacks that have hit their max_per_day limit
+	candidates, err = filterByFrequency(candidates)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("all matching snacks have reached their daily limit")
+	}
+
+	// Calculate weights
+	weighted := make([]weightedSnack, len(candidates))
+	for i, snack := range candidates {
+		weight, err := calculateWeight(snack)
+		if err != nil {
+			return nil, err
+		}
+		weighted[i] = weightedSnack{snack: snack, weight: weight}
+	}
+
+	// Select using weighted random
+	selected := weightedRandomSelect(weighted)
+	return &selected, nil
+}
+
+type weightedSnack struct {
+	snack  Snack
+	weight float64
+}
+
+// filterSnacks applies all filters to the snack list
+func filterSnacks(snacks []Snack, filters FilterOptions) []Snack {
+	var filtered []Snack
+
+	for _, snack := range snacks {
+		// Category filter
+		if filters.Category != "" && snack.CategoryCode != filters.Category {
+			continue
+		}
+
+		// Tag filter
+		if !snack.HasAllTags(filters.Tags) {
+			continue
+		}
+
+		// RPE filters
+		if filters.MinRPE > 0 && snack.EffectiveRPE < filters.MinRPE {
+			continue
+		}
+		if filters.MaxRPE > 0 && snack.EffectiveRPE > filters.MaxRPE {
+			continue
+		}
+
+		// Duration filters
+		if filters.ExactDuration > 0 {
+			// For exact duration, check if the duration falls in the range
+			if filters.ExactDuration < snack.DurationMin || filters.ExactDuration > snack.DurationMax {
+				continue
+			}
+		} else {
+			// Range-based filtering
+			minDur := filters.MinDuration
+			maxDur := filters.MaxDuration
+
+			// Set defaults if not specified
+			if minDur == 0 {
+				minDur = 0
+			}
+			if maxDur == 0 {
+				maxDur = 999
+			}
+
+			if !snack.MatchesDuration(minDur, maxDur) {
+				continue
+			}
+		}
+
+		filtered = append(filtered, snack)
+	}
+
+	return filtered
+}
+
+// filterByFrequency removes snacks that have hit their daily/weekly limits
+func filterByFrequency(snacks []Snack) ([]Snack, error) {
+	cfg := DefaultConfig()
+	var filtered []Snack
+
+	for _, snack := range snacks {
+		doneToday, _, err := GetCountTodayDaily(cfg.LogsDir, snack.FullCode)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check max_per_day
+		if snack.MaxPerDay > 0 && doneToday >= snack.MaxPerDay {
+			continue
+		}
+
+		// TODO: Implement max_per_week check if needed
+
+		filtered = append(filtered, snack)
+	}
+
+	return filtered, nil
+}
+
+// calculateWeight calculates the final weight for a snack with all boosts
+func calculateWeight(snack Snack) (float64, error) {
+	cfg := DefaultConfig()
+	weight := snack.Weight
+
+	// Every-day boost
+	if snack.EveryDay {
+		weight *= everyDayBoost
+	}
+
+	// Never done boost
+	everDone, err := HasEverBeenDoneDaily(cfg.LogsDir, snack.FullCode)
+	if err != nil {
+		return 0, err
+	}
+	if !everDone {
+		weight *= neverDoneBoost
+	}
+
+	// Recency boost
+	lastDone, err := GetLastDoneDaily(cfg.LogsDir, snack.FullCode)
+	if err != nil {
+		return 0, err
+	}
+	if lastDone != nil {
+		daysSince := time.Since(*lastDone).Hours() / 24
+		if daysSince >= float64(recencyDays) {
+			weight *= recencyBoost
+		}
+	}
+
+	return weight, nil
+}
+
+// weightedRandomSelect selects a snack using weighted random selection
+func weightedRandomSelect(weighted []weightedSnack) Snack {
+	// Calculate total weight
+	totalWeight := 0.0
+	for _, w := range weighted {
+		totalWeight += w.weight
+	}
+
+	// Random selection
+	r := rand.Float64() * totalWeight
+	cumulative := 0.0
+
+	for _, w := range weighted {
+		cumulative += w.weight
+		if r <= cumulative {
+			return w.snack
+		}
+	}
+
+	// Fallback (shouldn't happen)
+	return weighted[len(weighted)-1].snack
+}
+
+func init() {
+	// Seed random number generator
+	rand.Seed(time.Now().UnixNano())
+}
