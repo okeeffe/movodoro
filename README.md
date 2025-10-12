@@ -36,6 +36,47 @@ Or use it directly:
 ./movodoro help
 ```
 
+## Configuration
+
+Movodoro looks for movement snacks in a configurable directory. You have two options:
+
+### Option 1: Environment Variable (Recommended)
+
+Set `MOVODORO_MOVOS_DIR` to point to your movos directory:
+
+```bash
+# Add to your ~/.zshrc or ~/.bashrc
+export MOVODORO_MOVOS_DIR=~/my-movement-snacks
+```
+
+### Option 2: Default Location
+
+If no environment variable is set, movodoro looks in `~/.movodoro/movos/`
+
+```bash
+mkdir -p ~/.movodoro/movos
+# Copy example movos
+cp movos-examples/* ~/.movodoro/movos/
+```
+
+### Check Your Configuration
+
+```bash
+movodoro config
+```
+
+This will show:
+- Where movodoro is looking for your movos
+- Where logs are stored
+- How many snacks were found
+- Warnings if the movos directory doesn't exist
+
+### File Locations
+
+Movodoro stores data in `~/.movodoro/`:
+- `~/.movodoro/logs/YYYYMMDD.log` - Daily history logs
+- `~/.movodoro/current` - Currently selected snack code
+
 ## Quick Start
 
 1. **Get a random movement snack:**
@@ -222,6 +263,39 @@ movodoro clear
 
 Removes all of today's entries from history (requires confirmation). Useful for testing.
 
+### Show Configuration
+
+```bash
+movodoro config
+```
+
+Displays current configuration including movos directory, logs directory, and diagnostic information. Useful for troubleshooting setup issues.
+
+### Check Everyday Snacks
+
+```bash
+movodoro everyday
+```
+
+Shows all snacks marked with `every_day: true` and their completion status for today. Great for tracking your daily movement essentials.
+
+**Example output:**
+```
+═══════════════════════════════════════
+  EVERY DAY SNACKS
+═══════════════════════════════════════
+
+✅ Box breathing
+   Code: BR-box-breathing | RPE: 1 | Duration: 3-5 min
+   Completed 2 time(s) today
+
+❌ Hip circles and leg swings
+   Code: MOB-hip-circles | RPE: 3 | Duration: 5-7 min
+   Not yet done today
+
+Summary: 1/2 everyday snacks completed
+```
+
 ### Version
 
 ```bash
@@ -317,18 +391,16 @@ movodoro/
 ├── commands.go          # Command handlers
 ├── types.go             # Data structures
 ├── loader.go            # YAML loading
-├── history.go           # History management
-├── history_refactored.go # History with config support
+├── history.go           # Daily log management
 ├── selector.go          # Selection algorithm
 ├── config.go            # Configuration
 ├── movodoro_test.go     # Tests
 ├── testdata/            # Test fixtures
 │   └── movos/
-└── movos/               # Your movement snacks
-    ├── os-resets.yaml
-    ├── reset-breath.yaml
-    ├── tribal-squats.yaml
-    └── ...
+└── movos-examples/      # Example movement snacks
+    ├── breathing.yaml
+    ├── mobility.yaml
+    └── bodyweight-strength.yaml
 ```
 
 ## Contributing
