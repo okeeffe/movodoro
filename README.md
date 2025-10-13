@@ -280,13 +280,29 @@ movodoro report [period] [options]
 
 **Options:**
 - `--md, --markdown` - Output in markdown format (great for copy-pasting to logs)
+- `-v, --verbose` - Show titles and tags (perfect for workout journals)
 
 **Examples:**
 ```bash
-movodoro report                  # Today's report
+movodoro report                  # Today's report (codes only)
 movodoro report day              # Same as above
 movodoro report --md             # Markdown format
+movodoro report -v               # Verbose with titles and tags
+movodoro report --md -v          # Verbose markdown (best for logs)
+movodoro report --md -v >> log.md  # Append to workout journal
 ```
+
+**Verbose Output Example:**
+```markdown
+- **12:19** - OS Resets [`OS-resets`] (7 min, RPE 3) | #mobilityx, #flowx, #crawlx
+- **13:10** - Freeform squats [`MS-freeform-squats`] (6 min, RPE 6) | #strengthx, #squatx
+- **13:59** - Meditation [`BS-meditation`] (10 min, RPE 1) | #mindfulnessx
+```
+
+Verbose mode adds:
+- Human-readable titles for context
+- Codes in square brackets for reference
+- Hashtag tags (#kbx, #strengthx) for searchability
 
 ### Clear Today's History
 
@@ -459,8 +475,9 @@ Rate of Perceived Exertion (1-10):
 4. **Skip dailies when pressed for time**: Use `[x]` to grab a quick 3-min snack when you can't do your 10-min meditation
 5. **Check your progress**: Run `movodoro everyday` to see what you've completed
 6. **Recovery in afternoon**: Let auto-recovery kick in when you hit RPE 30, or manually use `movodoro get -R 2`
-7. **Track in markdown**: Use `movodoro report --md >> workout-log.md` to append to your training log
-8. **Non-interactive for scripts**: Use `movodoro get -t kbx` for automation or specific filters
+7. **Track in markdown**: Use `movodoro report --md -v >> workout-log.md` to append detailed logs to your training journal
+8. **Search by tags**: Use hashtags in verbose reports to quickly find workouts (search #kbx for kettlebell, #strengthx for strength training)
+9. **Non-interactive for scripts**: Use `movodoro get -t kbx` for automation or specific filters
 
 ## Development
 
