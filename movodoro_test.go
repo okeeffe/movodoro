@@ -187,8 +187,8 @@ func TestLoadSnacksFromTestData(t *testing.T) {
 			if snack.EffectiveRPE != 1 {
 				t.Errorf("TB-box-breath should have RPE 1 (inherited), got %d", snack.EffectiveRPE)
 			}
-			if !snack.EveryDay {
-				t.Error("TB-box-breath should be marked as every_day")
+			if snack.MinPerDay == 0 {
+				t.Error("TB-box-breath should be marked as min_per_day")
 			}
 		}
 		if snack.FullCode == "TS-heavy-lift" {
@@ -554,7 +554,7 @@ func TestEverydaySnacksPriority(t *testing.T) {
 	// Find an everyday snack
 	var everydaySnack *Snack
 	for i := range snacks {
-		if snacks[i].EveryDay {
+		if snacks[i].MinPerDay > 0 {
 			everydaySnack = &snacks[i]
 			break
 		}
@@ -571,20 +571,20 @@ func TestEverydaySnacksPriority(t *testing.T) {
 			t.Fatalf("SelectSnack failed: %v", err)
 		}
 
-		if !selected.EveryDay {
-			t.Errorf("Expected everyday snack, got: %s (every_day=%v)", selected.FullCode, selected.EveryDay)
+		if selected.MinPerDay == 0 {
+			t.Errorf("Expected everyday snack, got: %s (min_per_day=%d)", selected.FullCode, selected.MinPerDay)
 		}
 	})
 
 	t.Run("skip dailies flag bypasses priority", func(t *testing.T) {
-		// With SkipDailies=true, might get non-everyday snack
-		filters := FilterOptions{SkipDailies: true}
+		// With SkipMinimums=true, might get non-everyday snack
+		filters := FilterOptions{SkipMinimums: true}
 		selected, err := SelectSnack(snacks, filters, maxDailyRPEDefault)
 		if err != nil {
 			t.Fatalf("SelectSnack failed: %v", err)
 		}
 
-		t.Logf("With skip dailies: got %s (every_day=%v)", selected.FullCode, selected.EveryDay)
+		t.Logf("With skip dailies: got %s (min_per_day=%d)", selected.FullCode, selected.MinPerDay)
 		// This is probabilistic, but at least it should not ONLY select everyday snacks
 	})
 
@@ -609,7 +609,7 @@ func TestEverydaySnacksPriority(t *testing.T) {
 			t.Fatalf("SelectSnack failed: %v", err)
 		}
 
-		t.Logf("After completing everyday: got %s (every_day=%v)", selected.FullCode, selected.EveryDay)
+		t.Logf("After completing everyday: got %s (min_per_day=%d)", selected.FullCode, selected.MinPerDay)
 		// Selection can be anything now
 	})
 }

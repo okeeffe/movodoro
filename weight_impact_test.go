@@ -25,7 +25,7 @@ func TestWeightImpact(t *testing.T) {
 	totalWeight := 0.0
 
 	for _, s := range snacks {
-		if !s.EveryDay {
+		if s.MinPerDay == 0 {
 			nonEveryday = append(nonEveryday, s)
 			totalWeight += s.Weight
 		}

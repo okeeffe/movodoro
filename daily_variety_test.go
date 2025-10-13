@@ -36,7 +36,7 @@ func TestDailyVariety(t *testing.T) {
 			filters := FilterOptions{}
 			if movoNum > 4 {
 				// After everyday snacks, skip dailies to get variety
-				filters.SkipDailies = true
+				filters.SkipMinimums = true
 			}
 
 			snack, err := SelectSnack(snacks, filters, maxDailyRPEDefault)
@@ -122,7 +122,7 @@ func TestRecencyBiasStrength(t *testing.T) {
 	// Pick a test snack
 	var testSnack *Snack
 	for i := range snacks {
-		if !snacks[i].EveryDay {
+		if snacks[i].MinPerDay == 0 {
 			testSnack = &snacks[i]
 			break
 		}
@@ -153,7 +153,7 @@ func TestRecencyBiasStrength(t *testing.T) {
 	totalSelections := 100
 
 	for i := 0; i < totalSelections; i++ {
-		snack, err := SelectSnack(snacks, FilterOptions{SkipDailies: true}, maxDailyRPEDefault)
+		snack, err := SelectSnack(snacks, FilterOptions{SkipMinimums: true}, maxDailyRPEDefault)
 		if err != nil {
 			t.Fatalf("Selection failed: %v", err)
 		}

@@ -190,7 +190,7 @@ func TestWeightBoostEffects(t *testing.T) {
 	// Find an everyday snack
 	var everydaySnack *Snack
 	for _, s := range snacks {
-		if s.EveryDay {
+		if s.MinPerDay > 0 {
 			everydaySnack = &s
 			break
 		}
@@ -213,8 +213,8 @@ func TestWeightBoostEffects(t *testing.T) {
 	t.Logf("Boost multiplier: %.1fx", weight/everydaySnack.Weight)
 
 	// Verify everyday boost is applied
-	expectedBoost := everydaySnack.Weight * everyDayBoost
+	expectedBoost := everydaySnack.Weight * minPerDayBoost
 	if weight < expectedBoost {
-		t.Errorf("Expected everyday boost to be at least %.2f, got %.2f", expectedBoost, weight)
+		t.Errorf("Expected min_per_day boost to be at least %.2f, got %.2f", expectedBoost, weight)
 	}
 }

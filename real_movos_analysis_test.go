@@ -51,7 +51,7 @@ func TestRealMovosWeighting(t *testing.T) {
 		totalSelections := 1000
 
 		for i := 0; i < totalSelections; i++ {
-			snack, err := SelectSnack(snacks, FilterOptions{SkipDailies: true}, maxDailyRPEDefault)
+			snack, err := SelectSnack(snacks, FilterOptions{SkipMinimums: true}, maxDailyRPEDefault)
 			if err != nil {
 				t.Fatalf("Selection %d failed: %v", i, err)
 			}
@@ -81,7 +81,7 @@ func displayResults(t *testing.T, snacks []Snack, selectionCount map[string]int,
 			code:     snack.FullCode,
 			count:    count,
 			weight:   snack.Weight,
-			everyday: snack.EveryDay,
+			everyday: snack.MinPerDay > 0,
 		})
 	}
 
