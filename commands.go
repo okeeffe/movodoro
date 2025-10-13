@@ -249,8 +249,11 @@ func handleSkip(args []string) {
 func handleReport(args []string) {
 	fs := flag.NewFlagSet("report", flag.ExitOnError)
 	var markdown bool
+	var verbose bool
 	fs.BoolVar(&markdown, "markdown", false, "Output in markdown format")
 	fs.BoolVar(&markdown, "md", false, "Output in markdown format")
+	fs.BoolVar(&verbose, "verbose", false, "Show titles and tags (great for workout logs)")
+	fs.BoolVar(&verbose, "v", false, "Show titles and tags (great for workout logs)")
 
 	fs.Parse(args)
 
@@ -263,9 +266,9 @@ func handleReport(args []string) {
 	switch period {
 	case "day", "today":
 		if markdown {
-			showDayReportMarkdown()
+			showDayReportMarkdown(verbose)
 		} else {
-			showDayReport()
+			showDayReport(verbose)
 		}
 	case "week":
 		fmt.Println("Week report - not yet implemented")
@@ -277,15 +280,29 @@ func handleReport(args []string) {
 	}
 }
 
-func showDayReport() {
+func showDayReport(verbose bool) {
 	stats, err := GetTodayStatsDaily(appConfig.LogsDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading stats: %v\n", err)
 		os.Exit(1)
 	}
 
+	// Load snacks for verbose mode
+	var snackMap map[string]*Snack
+	if verbose {
+		snacks, err := LoadSnacks()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading snacks: %v\n", err)
+			os.Exit(1)
+		}
+		snackMap = make(map[string]*Snack)
+		for i := range snacks {
+			snackMap[snacks[i].FullCode] = &snacks[i]
+		}
+	}
+
 	fmt.Println("═══════════════════════════════════════")
-	fmt.Printf("  TODAY'S MOVEMENT REPORT\n")
+	fmt.Printf("  TODAY'S MOVODORO REPORT\n")
 	fmt.Printf("  %s\n", stats.Date.Format("Monday, January 2, 2006"))
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Println()
@@ -299,11 +316,40 @@ func showDayReport() {
 	if len(stats.CompletedSnacks) > 0 {
 		fmt.Printf("✅ Completed:\n")
 		for _, entry := range stats.CompletedSnacks {
-			fmt.Printf("   %s - %s (%dm, RPE %d)\n",
-				entry.Timestamp.Format("15:04"),
-				entry.Code,
-				entry.Duration,
-				entry.RPE)
+			if verbose {
+				snack := snackMap[entry.Code]
+				if snack != nil {
+					tagsStr := ""
+					if len(snack.AllTags) > 0 {
+						// Format tags with # prefix
+						tagList := make([]string, len(snack.AllTags))
+						for i, tag := range snack.AllTags {
+							tagList[i] = "#" + tag
+						}
+						tagsStr = fmt.Sprintf(" | %s", strings.Join(tagList, ", "))
+					}
+					fmt.Printf("   %s - %s [%s] (%dm, RPE %d)%s\n",
+						entry.Timestamp.Format("15:04"),
+						snack.Title,
+						entry.Code,
+						entry.Duration,
+						entry.RPE,
+						tagsStr)
+				} else {
+					// Fallback if snack not found
+					fmt.Printf("   %s - %s (%dm, RPE %d)\n",
+						entry.Timestamp.Format("15:04"),
+						entry.Code,
+						entry.Duration,
+						entry.RPE)
+				}
+			} else {
+				fmt.Printf("   %s - %s (%dm, RPE %d)\n",
+					entry.Timestamp.Format("15:04"),
+					entry.Code,
+					entry.Duration,
+					entry.RPE)
+			}
 		}
 		fmt.Println()
 	}
@@ -311,9 +357,23 @@ func showDayReport() {
 	if len(stats.SkippedSnacks) > 0 {
 		fmt.Printf("⏭️  Skipped:\n")
 		for _, entry := range stats.SkippedSnacks {
-			fmt.Printf("   %s - %s\n",
-				entry.Timestamp.Format("15:04"),
-				entry.Code)
+			if verbose {
+				snack := snackMap[entry.Code]
+				if snack != nil {
+					fmt.Printf("   %s - %s [%s]\n",
+						entry.Timestamp.Format("15:04"),
+						snack.Title,
+						entry.Code)
+				} else {
+					fmt.Printf("   %s - %s\n",
+						entry.Timestamp.Format("15:04"),
+						entry.Code)
+				}
+			} else {
+				fmt.Printf("   %s - %s\n",
+					entry.Timestamp.Format("15:04"),
+					entry.Code)
+			}
 		}
 		fmt.Println()
 	}
@@ -323,14 +383,28 @@ func showDayReport() {
 	}
 }
 
-func showDayReportMarkdown() {
+func showDayReportMarkdown(verbose bool) {
 	stats, err := GetTodayStatsDaily(appConfig.LogsDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading stats: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("# Movement Report - %s\n\n", stats.Date.Format("Monday, January 2, 2006"))
+	// Load snacks for verbose mode
+	var snackMap map[string]*Snack
+	if verbose {
+		snacks, err := LoadSnacks()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading snacks: %v\n", err)
+			os.Exit(1)
+		}
+		snackMap = make(map[string]*Snack)
+		for i := range snacks {
+			snackMap[snacks[i].FullCode] = &snacks[i]
+		}
+	}
+
+	fmt.Printf("# Movodoro Report - %s\n\n", stats.Date.Format("Monday, January 2, 2006"))
 
 	fmt.Println("## Summary")
 	fmt.Println()
@@ -343,11 +417,40 @@ func showDayReportMarkdown() {
 		fmt.Println("## Completed")
 		fmt.Println()
 		for _, entry := range stats.CompletedSnacks {
-			fmt.Printf("- **%s** - `%s` (%d min, RPE %d)\n",
-				entry.Timestamp.Format("15:04"),
-				entry.Code,
-				entry.Duration,
-				entry.RPE)
+			if verbose {
+				snack := snackMap[entry.Code]
+				if snack != nil {
+					tagsStr := ""
+					if len(snack.AllTags) > 0 {
+						// Format tags with # prefix
+						tagList := make([]string, len(snack.AllTags))
+						for i, tag := range snack.AllTags {
+							tagList[i] = "#" + tag
+						}
+						tagsStr = fmt.Sprintf(" | %s", strings.Join(tagList, ", "))
+					}
+					fmt.Printf("- **%s** - %s [`%s`] (%d min, RPE %d)%s\n",
+						entry.Timestamp.Format("15:04"),
+						snack.Title,
+						entry.Code,
+						entry.Duration,
+						entry.RPE,
+						tagsStr)
+				} else {
+					// Fallback if snack not found
+					fmt.Printf("- **%s** - `%s` (%d min, RPE %d)\n",
+						entry.Timestamp.Format("15:04"),
+						entry.Code,
+						entry.Duration,
+						entry.RPE)
+				}
+			} else {
+				fmt.Printf("- **%s** - `%s` (%d min, RPE %d)\n",
+					entry.Timestamp.Format("15:04"),
+					entry.Code,
+					entry.Duration,
+					entry.RPE)
+			}
 		}
 		fmt.Println()
 	}
@@ -356,9 +459,23 @@ func showDayReportMarkdown() {
 		fmt.Println("## Skipped")
 		fmt.Println()
 		for _, entry := range stats.SkippedSnacks {
-			fmt.Printf("- **%s** - `%s`\n",
-				entry.Timestamp.Format("15:04"),
-				entry.Code)
+			if verbose {
+				snack := snackMap[entry.Code]
+				if snack != nil {
+					fmt.Printf("- **%s** - %s [`%s`]\n",
+						entry.Timestamp.Format("15:04"),
+						snack.Title,
+						entry.Code)
+				} else {
+					fmt.Printf("- **%s** - `%s`\n",
+						entry.Timestamp.Format("15:04"),
+						entry.Code)
+				}
+			} else {
+				fmt.Printf("- **%s** - `%s`\n",
+					entry.Timestamp.Format("15:04"),
+					entry.Code)
+			}
 		}
 		fmt.Println()
 	}
