@@ -320,11 +320,15 @@ func showDayReport(verbose bool) {
 				snack := movoMap[entry.Code]
 				if snack != nil {
 					tagsStr := ""
-					if len(snack.AllTags) > 0 {
+					if len(snack.AllTags) > 0 || snack.MinPerDay > 0 {
 						// Format tags with # prefix
 						tagList := make([]string, len(snack.AllTags))
 						for i, tag := range snack.AllTags {
 							tagList[i] = "#" + tag
+						}
+						// Add #daily tag if this is an everyday movo
+						if snack.MinPerDay > 0 {
+							tagList = append(tagList, "#daily")
 						}
 						tagsStr = fmt.Sprintf(" | %s", strings.Join(tagList, ", "))
 					}
@@ -421,11 +425,15 @@ func showDayReportMarkdown(verbose bool) {
 				snack := movoMap[entry.Code]
 				if snack != nil {
 					tagsStr := ""
-					if len(snack.AllTags) > 0 {
+					if len(snack.AllTags) > 0 || snack.MinPerDay > 0 {
 						// Format tags with # prefix
 						tagList := make([]string, len(snack.AllTags))
 						for i, tag := range snack.AllTags {
 							tagList[i] = "#" + tag
+						}
+						// Add #daily tag if this is an everyday movo
+						if snack.MinPerDay > 0 {
+							tagList = append(tagList, "#daily")
 						}
 						tagsStr = fmt.Sprintf(" | %s", strings.Join(tagList, ", "))
 					}
