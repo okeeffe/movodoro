@@ -15,7 +15,7 @@ const (
 )
 
 // SelectSnack selects a random snack based on weights and constraints
-func SelectSnack(snacks []Snack, filters FilterOptions, maxDailyRPE int) (*Snack, error) {
+func SelectSnack(snacks []Movo, filters FilterOptions, maxDailyRPE int) (*Movo, error) {
 	cfg := DefaultConfig()
 
 	// Get today's stats
@@ -76,13 +76,13 @@ func SelectSnack(snacks []Snack, filters FilterOptions, maxDailyRPE int) (*Snack
 }
 
 type weightedSnack struct {
-	snack  Snack
+	snack  Movo
 	weight float64
 }
 
 // filterSnacks applies all filters to the snack list
-func filterSnacks(snacks []Snack, filters FilterOptions) []Snack {
-	var filtered []Snack
+func filterSnacks(snacks []Movo, filters FilterOptions) []Movo {
+	var filtered []Movo
 
 	for _, snack := range snacks {
 		// Category filter
@@ -134,8 +134,8 @@ func filterSnacks(snacks []Snack, filters FilterOptions) []Snack {
 }
 
 // filterToIncompleteMinimums returns only snacks that haven't met their min_per_day requirement
-func filterToIncompleteMinimums(snacks []Snack, logsDir string) ([]Snack, error) {
-	var incomplete []Snack
+func filterToIncompleteMinimums(snacks []Movo, logsDir string) ([]Movo, error) {
+	var incomplete []Movo
 
 	for _, snack := range snacks {
 		// Only consider snacks with a minimum requirement
@@ -159,9 +159,9 @@ func filterToIncompleteMinimums(snacks []Snack, logsDir string) ([]Snack, error)
 }
 
 // filterByFrequency removes snacks that have hit their daily/weekly limits
-func filterByFrequency(snacks []Snack) ([]Snack, error) {
+func filterByFrequency(snacks []Movo) ([]Movo, error) {
 	cfg := DefaultConfig()
-	var filtered []Snack
+	var filtered []Movo
 
 	for _, snack := range snacks {
 		doneToday, _, err := GetCountTodayDaily(cfg.LogsDir, snack.FullCode)
@@ -183,7 +183,7 @@ func filterByFrequency(snacks []Snack) ([]Snack, error) {
 }
 
 // calculateWeight calculates the final weight for a snack with all boosts
-func calculateWeight(snack Snack) (float64, error) {
+func calculateWeight(snack Movo) (float64, error) {
 	cfg := DefaultConfig()
 	weight := snack.Weight
 
@@ -223,7 +223,7 @@ func calculateWeight(snack Snack) (float64, error) {
 }
 
 // weightedRandomSelect selects a snack using weighted random selection
-func weightedRandomSelect(weighted []weightedSnack) Snack {
+func weightedRandomSelect(weighted []weightedSnack) Movo {
 	// Calculate total weight
 	totalWeight := 0.0
 	for _, w := range weighted {

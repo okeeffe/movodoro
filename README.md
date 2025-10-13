@@ -159,7 +159,7 @@ weight: 1.5           # Category weight (higher = more likely to be selected)
 default_rpe: 1        # Default RPE for all snacks in this category
 tags: [breathx, resetx]
 
-snacks:
+movos:
   - code: box-breathing
     title: 4-7-8 or box breathing
     description: |

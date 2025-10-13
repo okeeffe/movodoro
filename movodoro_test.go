@@ -66,7 +66,7 @@ func TestParseHistoryLine(t *testing.T) {
 }
 
 func TestSnackHasAllTags(t *testing.T) {
-	snack := Snack{
+	snack := Movo{
 		AllTags: []string{"breathx", "testx", "mobilityx"},
 	}
 
@@ -94,7 +94,7 @@ func TestSnackHasAllTags(t *testing.T) {
 }
 
 func TestSnackMatchesDuration(t *testing.T) {
-	snack := Snack{
+	snack := Movo{
 		DurationMin: 3,
 		DurationMax: 5,
 	}
@@ -138,7 +138,7 @@ func TestSnackGetDefaultDuration(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		snack := Snack{
+		snack := Movo{
 			DurationMin: tt.min,
 			DurationMax: tt.max,
 		}
@@ -465,8 +465,8 @@ func TestFilterByFrequency(t *testing.T) {
 }
 
 // Helper function for frequency filtering with config
-func filterByFrequencyWithConfig(cfg *Config, snacks []Snack) ([]Snack, error) {
-	var filtered []Snack
+func filterByFrequencyWithConfig(cfg *Config, snacks []Movo) ([]Movo, error) {
+	var filtered []Movo
 
 	for _, snack := range snacks {
 		doneToday, _, err := GetCountTodayDaily(cfg.LogsDir, snack.FullCode)
@@ -485,7 +485,7 @@ func filterByFrequencyWithConfig(cfg *Config, snacks []Snack) ([]Snack, error) {
 }
 
 // Helper function to load snacks with config
-func LoadSnacksWithConfig(cfg *Config) ([]Snack, error) {
+func LoadSnacksWithConfig(cfg *Config) ([]Movo, error) {
 	// Check if movos directory exists
 	if _, err := os.Stat(cfg.MovosDir); os.IsNotExist(err) {
 		return nil, err
@@ -501,7 +501,7 @@ func LoadSnacksWithConfig(cfg *Config) ([]Snack, error) {
 		return nil, err
 	}
 
-	var allSnacks []Snack
+	var allMovos []Movo
 
 	// Load each file
 	for _, file := range files {
@@ -511,8 +511,8 @@ func LoadSnacksWithConfig(cfg *Config) ([]Snack, error) {
 		}
 
 		// Process snacks in this category
-		for i := range category.Snacks {
-			snack := &category.Snacks[i]
+		for i := range category.Movos {
+			snack := &category.Movos[i]
 			snack.CategoryCode = category.Code
 			snack.FullCode = category.Code + "-" + snack.Code
 			snack.AllTags = append([]string{}, category.Tags...)
@@ -528,11 +528,11 @@ func LoadSnacksWithConfig(cfg *Config) ([]Snack, error) {
 				snack.Weight = category.Weight
 			}
 
-			allSnacks = append(allSnacks, *snack)
+			allMovos = append(allMovos, *snack)
 		}
 	}
 
-	return allSnacks, nil
+	return allMovos, nil
 }
 
 func TestEverydaySnacksPriority(t *testing.T) {
@@ -552,15 +552,15 @@ func TestEverydaySnacksPriority(t *testing.T) {
 	cfg := TestConfig(tmpDir)
 
 	// Find an everyday snack
-	var everydaySnack *Snack
+	var everydayMovo *Movo
 	for i := range snacks {
 		if snacks[i].MinPerDay > 0 {
-			everydaySnack = &snacks[i]
+			everydayMovo = &snacks[i]
 			break
 		}
 	}
 
-	if everydaySnack == nil {
+	if everydayMovo == nil {
 		t.Skip("No everyday snacks in test data")
 	}
 
@@ -592,10 +592,10 @@ func TestEverydaySnacksPriority(t *testing.T) {
 		// Complete the everyday snack
 		entry := HistoryEntry{
 			Timestamp: time.Now(),
-			Code:      everydaySnack.FullCode,
+			Code:      everydayMovo.FullCode,
 			Status:    "done",
 			Duration:  5,
-			RPE:       everydaySnack.EffectiveRPE,
+			RPE:       everydayMovo.EffectiveRPE,
 		}
 
 		if err := AppendTodayLog(cfg.LogsDir, entry); err != nil {

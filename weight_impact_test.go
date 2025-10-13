@@ -21,7 +21,7 @@ func TestWeightImpact(t *testing.T) {
 	}
 
 	// Filter to non-everyday snacks for fair comparison
-	var nonEveryday []Snack
+	var nonEveryday []Movo
 	totalWeight := 0.0
 
 	for _, s := range snacks {

@@ -48,16 +48,16 @@ func TestSelectionWeighting(t *testing.T) {
 	t.Logf("\n=== Selection Analysis (%d total selections) ===\n", totalSelections)
 
 	// Sort by selection count (descending)
-	type snackCount struct {
+	type movoCount struct {
 		code   string
 		count  int
 		weight float64
 	}
 
-	var results []snackCount
+	var results []movoCount
 	for _, snack := range snacks {
 		count := selectionCount[snack.FullCode]
-		results = append(results, snackCount{
+		results = append(results, movoCount{
 			code:   snack.FullCode,
 			count:  count,
 			weight: snack.Weight,
@@ -188,32 +188,32 @@ func TestWeightBoostEffects(t *testing.T) {
 	}
 
 	// Find an everyday snack
-	var everydaySnack *Snack
+	var everydayMovo *Movo
 	for _, s := range snacks {
 		if s.MinPerDay > 0 {
-			everydaySnack = &s
+			everydayMovo = &s
 			break
 		}
 	}
 
-	if everydaySnack == nil {
+	if everydayMovo == nil {
 		t.Skip("No everyday snacks in test data")
 	}
 
 	// Calculate weights for everyday snack
-	weight, err := calculateWeight(*everydaySnack)
+	weight, err := calculateWeight(*everydayMovo)
 	if err != nil {
 		t.Fatalf("Failed to calculate weight: %v", err)
 	}
 
 	t.Logf("\n=== Boost Effect Analysis ===")
-	t.Logf("Everyday snack: %s", everydaySnack.FullCode)
-	t.Logf("Base weight: %.2f", everydaySnack.Weight)
+	t.Logf("Everyday snack: %s", everydayMovo.FullCode)
+	t.Logf("Base weight: %.2f", everydayMovo.Weight)
 	t.Logf("Final weight (with boosts): %.2f", weight)
-	t.Logf("Boost multiplier: %.1fx", weight/everydaySnack.Weight)
+	t.Logf("Boost multiplier: %.1fx", weight/everydayMovo.Weight)
 
 	// Verify everyday boost is applied
-	expectedBoost := everydaySnack.Weight * minPerDayBoost
+	expectedBoost := everydayMovo.Weight * minPerDayBoost
 	if weight < expectedBoost {
 		t.Errorf("Expected min_per_day boost to be at least %.2f, got %.2f", expectedBoost, weight)
 	}

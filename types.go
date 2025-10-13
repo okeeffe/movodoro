@@ -9,11 +9,11 @@ type Category struct {
 	Weight     float64  `yaml:"weight"`
 	DefaultRPE int      `yaml:"default_rpe"`
 	Tags       []string `yaml:"tags"`
-	Snacks     []Snack  `yaml:"snacks"`
+	Movos      []Movo  `yaml:"movos"`
 }
 
-// Snack represents a single movement snack
-type Snack struct {
+// Movo represents a single movement snack
+type Movo struct {
 	Code        string   `yaml:"code"`
 	Title       string   `yaml:"title"`
 	Description string   `yaml:"description"`

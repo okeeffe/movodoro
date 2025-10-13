@@ -62,22 +62,22 @@ func TestRealMovosWeighting(t *testing.T) {
 	})
 }
 
-func displayResults(t *testing.T, snacks []Snack, selectionCount map[string]int, totalSelections int, title string) {
+func displayResults(t *testing.T, snacks []Movo, selectionCount map[string]int, totalSelections int, title string) {
 	t.Logf("\n=== %s (%d selections) ===\n", title, totalSelections)
 
-	type snackCount struct {
+	type movoCount struct {
 		code     string
 		count    int
 		weight   float64
 		everyday bool
 	}
 
-	var results []snackCount
-	snackMap := make(map[string]Snack)
+	var results []movoCount
+	movoMap := make(map[string]Movo)
 	for _, snack := range snacks {
-		snackMap[snack.FullCode] = snack
+		movoMap[snack.FullCode] = snack
 		count := selectionCount[snack.FullCode]
-		results = append(results, snackCount{
+		results = append(results, movoCount{
 			code:     snack.FullCode,
 			count:    count,
 			weight:   snack.Weight,

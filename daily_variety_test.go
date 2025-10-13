@@ -120,7 +120,7 @@ func TestRecencyBiasStrength(t *testing.T) {
 	}
 
 	// Pick a test snack
-	var testSnack *Snack
+	var testSnack *Movo
 	for i := range snacks {
 		if snacks[i].MinPerDay == 0 {
 			testSnack = &snacks[i]

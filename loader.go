@@ -10,7 +10,7 @@ import (
 )
 
 // LoadSnacks loads all snack definitions from YAML files in the movos directory
-func LoadSnacks() ([]Snack, error) {
+func LoadSnacks() ([]Movo, error) {
 	cfg := DefaultConfig()
 	movosDir := cfg.MovosDir
 
@@ -29,7 +29,7 @@ func LoadSnacks() ([]Snack, error) {
 		return nil, fmt.Errorf("no YAML files found in movos directory")
 	}
 
-	var allSnacks []Snack
+	var allMovos []Movo
 
 	// Load each file
 	for _, file := range files {
@@ -39,8 +39,8 @@ func LoadSnacks() ([]Snack, error) {
 		}
 
 		// Process snacks in this category
-		for i := range category.Snacks {
-			snack := &category.Snacks[i]
+		for i := range category.Movos {
+			snack := &category.Movos[i]
 
 			// Set category code
 			snack.CategoryCode = category.Code
@@ -64,11 +64,11 @@ func LoadSnacks() ([]Snack, error) {
 				snack.Weight = category.Weight
 			}
 
-			allSnacks = append(allSnacks, *snack)
+			allMovos = append(allMovos, *snack)
 		}
 	}
 
-	return allSnacks, nil
+	return allMovos, nil
 }
 
 func loadCategory(filepath string) (*Category, error) {
@@ -86,7 +86,7 @@ func loadCategory(filepath string) (*Category, error) {
 }
 
 // HasAllTags checks if snack has all specified tags
-func (s *Snack) HasAllTags(tags []string) bool {
+func (s *Movo) HasAllTags(tags []string) bool {
 	if len(tags) == 0 {
 		return true
 	}
@@ -106,7 +106,7 @@ func (s *Snack) HasAllTags(tags []string) bool {
 }
 
 // MatchesDuration checks if snack duration overlaps with filter
-func (s *Snack) MatchesDuration(minDur, maxDur int) bool {
+func (s *Movo) MatchesDuration(minDur, maxDur int) bool {
 	if minDur == 0 && maxDur == 0 {
 		return true
 	}
@@ -116,7 +116,7 @@ func (s *Snack) MatchesDuration(minDur, maxDur int) bool {
 }
 
 // GetDefaultDuration returns the middle of the duration range, rounded up
-func (s *Snack) GetDefaultDuration() int {
+func (s *Movo) GetDefaultDuration() int {
 	total := s.DurationMin + s.DurationMax
 	// Round up: (total + 1) / 2
 	return (total + 1) / 2

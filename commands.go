@@ -118,7 +118,7 @@ func handleDone(args []string) {
 	}
 
 	// Find the snack
-	var snack *Snack
+	var snack *Movo
 	for _, s := range snacks {
 		if s.FullCode == code {
 			snack = &s
@@ -214,7 +214,7 @@ func handleSkip(args []string) {
 	}
 
 	// Find the snack
-	var snack *Snack
+	var snack *Movo
 	for _, s := range snacks {
 		if s.FullCode == code {
 			snack = &s
@@ -288,16 +288,16 @@ func showDayReport(verbose bool) {
 	}
 
 	// Load snacks for verbose mode
-	var snackMap map[string]*Snack
+	var movoMap map[string]*Movo
 	if verbose {
 		snacks, err := LoadSnacks()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading snacks: %v\n", err)
 			os.Exit(1)
 		}
-		snackMap = make(map[string]*Snack)
+		movoMap = make(map[string]*Movo)
 		for i := range snacks {
-			snackMap[snacks[i].FullCode] = &snacks[i]
+			movoMap[snacks[i].FullCode] = &snacks[i]
 		}
 	}
 
@@ -317,7 +317,7 @@ func showDayReport(verbose bool) {
 		fmt.Printf("✅ Completed:\n")
 		for _, entry := range stats.CompletedSnacks {
 			if verbose {
-				snack := snackMap[entry.Code]
+				snack := movoMap[entry.Code]
 				if snack != nil {
 					tagsStr := ""
 					if len(snack.AllTags) > 0 {
@@ -358,7 +358,7 @@ func showDayReport(verbose bool) {
 		fmt.Printf("⏭️  Skipped:\n")
 		for _, entry := range stats.SkippedSnacks {
 			if verbose {
-				snack := snackMap[entry.Code]
+				snack := movoMap[entry.Code]
 				if snack != nil {
 					fmt.Printf("   %s - %s [%s]\n",
 						entry.Timestamp.Format("15:04"),
@@ -391,16 +391,16 @@ func showDayReportMarkdown(verbose bool) {
 	}
 
 	// Load snacks for verbose mode
-	var snackMap map[string]*Snack
+	var movoMap map[string]*Movo
 	if verbose {
 		snacks, err := LoadSnacks()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading snacks: %v\n", err)
 			os.Exit(1)
 		}
-		snackMap = make(map[string]*Snack)
+		movoMap = make(map[string]*Movo)
 		for i := range snacks {
-			snackMap[snacks[i].FullCode] = &snacks[i]
+			movoMap[snacks[i].FullCode] = &snacks[i]
 		}
 	}
 
@@ -418,7 +418,7 @@ func showDayReportMarkdown(verbose bool) {
 		fmt.Println()
 		for _, entry := range stats.CompletedSnacks {
 			if verbose {
-				snack := snackMap[entry.Code]
+				snack := movoMap[entry.Code]
 				if snack != nil {
 					tagsStr := ""
 					if len(snack.AllTags) > 0 {
@@ -460,7 +460,7 @@ func showDayReportMarkdown(verbose bool) {
 		fmt.Println()
 		for _, entry := range stats.SkippedSnacks {
 			if verbose {
-				snack := snackMap[entry.Code]
+				snack := movoMap[entry.Code]
 				if snack != nil {
 					fmt.Printf("- **%s** - %s [`%s`]\n",
 						entry.Timestamp.Format("15:04"),
@@ -485,7 +485,7 @@ func showDayReportMarkdown(verbose bool) {
 	}
 }
 
-func displaySnack(snack *Snack) {
+func displaySnack(snack *Movo) {
 	fmt.Println()
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Printf("  %s\n", snack.Title)
@@ -614,14 +614,14 @@ func handleEveryday(args []string) {
 	}
 
 	// Filter to only snacks with min_per_day requirement
-	var everydaySnacks []Snack
+	var everydayMovos []Movo
 	for _, snack := range snacks {
 		if snack.MinPerDay > 0 {
-			everydaySnacks = append(everydaySnacks, snack)
+			everydayMovos = append(everydayMovos, snack)
 		}
 	}
 
-	if len(everydaySnacks) == 0 {
+	if len(everydayMovos) == 0 {
 		fmt.Println("No movos with min_per_day requirement")
 		return
 	}
@@ -645,7 +645,7 @@ func handleEveryday(args []string) {
 	}
 
 	// Display each everyday snack
-	for _, snack := range everydaySnacks {
+	for _, snack := range everydayMovos {
 		count := completedToday[snack.FullCode]
 		status := "❌"
 		if count >= snack.MinPerDay {
@@ -665,13 +665,13 @@ func handleEveryday(args []string) {
 	}
 
 	completed := 0
-	for _, snack := range everydaySnacks {
+	for _, snack := range everydayMovos {
 		if completedToday[snack.FullCode] > 0 {
 			completed++
 		}
 	}
 
-	fmt.Printf("Summary: %d/%d everyday movos completed\n", completed, len(everydaySnacks))
+	fmt.Printf("Summary: %d/%d everyday movos completed\n", completed, len(everydayMovos))
 }
 
 // handleInteractive implements the interactive mode (default when running `movodoro`)
@@ -687,7 +687,7 @@ func handleInteractive(args []string) {
 	filters := FilterOptions{}
 
 	for {
-		var snack *Snack
+		var snack *Movo
 
 		// Try to load saved snack from previous session
 		savedCode, err := loadCurrentSnack()
@@ -756,7 +756,7 @@ func handleInteractive(args []string) {
 }
 
 // displaySnackInteractive displays a snack in interactive mode
-func displaySnackInteractive(snack *Snack) {
+func displaySnackInteractive(snack *Movo) {
 	fmt.Println()
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Printf("  %s\n", snack.Title)
@@ -840,7 +840,7 @@ func getInteractiveChoice(hasMinimum bool) string {
 }
 
 // handleDoneInteractive handles completing a snack in interactive mode
-func handleDoneInteractive(snack *Snack) {
+func handleDoneInteractive(snack *Movo) {
 	reader := bufio.NewReader(os.Stdin)
 
 	// Prompt for actual duration
@@ -900,7 +900,7 @@ func handleDoneInteractive(snack *Snack) {
 }
 
 // handleSkipInteractive handles skipping a snack in interactive mode
-func handleSkipInteractive(snack *Snack) {
+func handleSkipInteractive(snack *Movo) {
 	// Create history entry with 0 duration and RPE
 	entry := HistoryEntry{
 		Timestamp: time.Now(),
