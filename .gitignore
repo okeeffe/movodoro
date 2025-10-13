@@ -29,3 +29,7 @@ coverage.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Development/planning files
+mvp-plan.md
+manual_variety_test.sh

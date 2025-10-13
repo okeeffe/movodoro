@@ -1,6 +1,6 @@
 # Movodoro
 
-A CLI tool for generating and tracking movement snacks during work breaks. Stay active, prevent burnout, and build movement variety into your day with intelligent snack selection and RPE-based load management.
+A CLI tool for generating and tracking movement snacks (a.k.a movos) during work breaks. Stay active, prevent burnout, and build movement variety into your day with intelligent snack selection and RPE-based load management.
 
 ## What is Movodoro?
 
