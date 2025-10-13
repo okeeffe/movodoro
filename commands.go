@@ -186,7 +186,7 @@ func handleDone(args []string) {
 
 	// Show updated daily stats
 	stats, _ := GetTodayStatsDaily(appConfig.LogsDir)
-	fmt.Printf("📊 Today: %d snacks, %d minutes, %d RPE\n", stats.TotalSnacks, stats.TotalDuration, stats.TotalRPE)
+	fmt.Printf("📊 Today: %d movos, %d minutes, %d RPE\n", stats.TotalMovos, stats.TotalDuration, stats.TotalRPE)
 }
 
 // handleSkip implements the 'skip' command
@@ -308,7 +308,7 @@ func showDayReport(verbose bool) {
 	fmt.Println()
 
 	fmt.Printf("📊 Summary:\n")
-	fmt.Printf("   Total snacks:    %d\n", len(stats.CompletedSnacks))
+	fmt.Printf("   Total movos:     %d\n", len(stats.CompletedSnacks))
 	fmt.Printf("   Total duration:  %d minutes\n", stats.TotalDuration)
 	fmt.Printf("   Total RPE:       %d / %d\n", stats.TotalRPE, maxDailyRPEDefault)
 	fmt.Println()
@@ -408,7 +408,7 @@ func showDayReportMarkdown(verbose bool) {
 
 	fmt.Println("## Summary")
 	fmt.Println()
-	fmt.Printf("- **Total snacks:** %d\n", len(stats.CompletedSnacks))
+	fmt.Printf("- **Total movos:** %d\n", len(stats.CompletedSnacks))
 	fmt.Printf("- **Total duration:** %d minutes\n", stats.TotalDuration)
 	fmt.Printf("- **Total RPE:** %d / %d\n", stats.TotalRPE, maxDailyRPEDefault)
 	fmt.Println()
@@ -541,12 +541,12 @@ func handleClear(args []string) {
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Println()
 
-	if stats.TotalSnacks == 0 {
+	if stats.TotalMovos == 0 {
 		fmt.Println("No entries for today to clear.")
 		return
 	}
 
-	fmt.Printf("This will delete today's log file with %d entries:\n", stats.TotalSnacks)
+	fmt.Printf("This will delete today's log file with %d entries:\n", stats.TotalMovos)
 	fmt.Printf("  - %d completed (%d minutes, %d RPE)\n",
 		len(stats.CompletedSnacks), stats.TotalDuration, stats.TotalRPE)
 	fmt.Printf("  - %d skipped\n", len(stats.SkippedSnacks))
@@ -569,7 +569,7 @@ func handleClear(args []string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("✅ Cleared %d entries from today's history\n", stats.TotalSnacks)
+	fmt.Printf("✅ Cleared %d entries from today's history\n", stats.TotalMovos)
 }
 
 // handleConfig implements the 'config' command
@@ -622,7 +622,7 @@ func handleEveryday(args []string) {
 	}
 
 	if len(everydaySnacks) == 0 {
-		fmt.Println("No snacks with min_per_day requirement")
+		fmt.Println("No movos with min_per_day requirement")
 		return
 	}
 
@@ -671,7 +671,7 @@ func handleEveryday(args []string) {
 		}
 	}
 
-	fmt.Printf("Summary: %d/%d everyday snacks completed\n", completed, len(everydaySnacks))
+	fmt.Printf("Summary: %d/%d everyday movos completed\n", completed, len(everydaySnacks))
 }
 
 // handleInteractive implements the interactive mode (default when running `movodoro`)
@@ -896,7 +896,7 @@ func handleDoneInteractive(snack *Snack) {
 
 	// Show updated daily stats
 	stats, _ := GetTodayStatsDaily(appConfig.LogsDir)
-	fmt.Printf("📊 Today: %d snacks, %d minutes, %d RPE\n\n", stats.TotalSnacks, stats.TotalDuration, stats.TotalRPE)
+	fmt.Printf("📊 Today: %d movos, %d minutes, %d RPE\n\n", stats.TotalMovos, stats.TotalDuration, stats.TotalRPE)
 }
 
 // handleSkipInteractive handles skipping a snack in interactive mode

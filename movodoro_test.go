@@ -304,8 +304,8 @@ func TestGetTodayStatsWithHistory(t *testing.T) {
 		t.Fatalf("failed to get stats: %v", err)
 	}
 
-	if stats.TotalSnacks != 3 {
-		t.Errorf("expected 3 total snacks, got %d", stats.TotalSnacks)
+	if stats.TotalMovos != 3 {
+		t.Errorf("expected 3 total movos, got %d", stats.TotalMovos)
 	}
 
 	if len(stats.CompletedSnacks) != 2 {

@@ -179,7 +179,7 @@ func GetTodayStatsDaily(logsDir string) (DailyStats, error) {
 	}
 
 	for _, entry := range entries {
-		stats.TotalSnacks++
+		stats.TotalMovos++
 
 		if entry.Status == "done" {
 			stats.TotalDuration += entry.Duration

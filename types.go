@@ -57,7 +57,7 @@ type FilterOptions struct {
 // DailyStats contains statistics for a given day
 type DailyStats struct {
 	Date          time.Time
-	TotalSnacks   int
+	TotalMovos    int
 	TotalDuration int
 	TotalRPE      int
 	CompletedSnacks []HistoryEntry
