@@ -23,14 +23,14 @@ func handleGet(args []string) {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	var (
-		tags        string
-		category    string
-		duration    int
-		minDuration int
-		maxDuration int
-		minRPE      int
-		maxRPE      int
-		skipDailies bool
+		tags         string
+		category     string
+		duration     int
+		minDuration  int
+		maxDuration  int
+		minRPE       int
+		maxRPE       int
+		skipMinimums bool
 	)
 
 	fs.StringVar(&tags, "tags", "", "Filter by tags (comma-separated)")
@@ -47,7 +47,7 @@ func handleGet(args []string) {
 	fs.IntVar(&minRPE, "r", 0, "Minimum RPE")
 	fs.IntVar(&maxRPE, "max-rpe", 0, "Maximum RPE")
 	fs.IntVar(&maxRPE, "R", 0, "Maximum RPE")
-	fs.BoolVar(&skipDailies, "skip-dailies", false, "Skip everyday snacks priority")
+	fs.BoolVar(&skipMinimums, "skip-minimums", false, "Skip min_per_day priority")
 
 	fs.Parse(args)
 
@@ -66,7 +66,7 @@ func handleGet(args []string) {
 		ExactDuration: duration,
 		MinRPE:        minRPE,
 		MaxRPE:        maxRPE,
-		SkipDailies:   skipDailies,
+		SkipMinimums:  skipMinimums,
 	}
 
 	if tags != "" {
@@ -131,11 +131,12 @@ func handleDone(args []string) {
 		os.Exit(1)
 	}
 
+	reader := bufio.NewReader(os.Stdin)
+
 	// Prompt for actual duration
 	defaultDuration := snack.GetDefaultDuration()
 	fmt.Printf("How many minutes did you spend? (default: %d): ", defaultDuration)
 
-	reader := bufio.NewReader(os.Stdin)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 
@@ -149,13 +150,30 @@ func handleDone(args []string) {
 		}
 	}
 
+	// Prompt for RPE
+	defaultRPE := snack.EffectiveRPE
+	fmt.Printf("How hard was it? RPE (default: %d): ", defaultRPE)
+
+	input, _ = reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+
+	rpe := defaultRPE
+	if input != "" {
+		parsed, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid RPE, using default: %d\n", defaultRPE)
+		} else {
+			rpe = parsed
+		}
+	}
+
 	// Create history entry
 	entry := HistoryEntry{
 		Timestamp: time.Now(),
 		Code:      code,
 		Status:    "done",
 		Duration:  duration,
-		RPE:       snack.EffectiveRPE,
+		RPE:       rpe,
 	}
 
 	// Save to history
@@ -164,7 +182,7 @@ func handleDone(args []string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("✅ Marked '%s' as completed (%d minutes, RPE %d)\n", snack.Title, duration, snack.EffectiveRPE)
+	fmt.Printf("✅ Marked '%s' as completed (%d minutes, RPE %d)\n", snack.Title, duration, rpe)
 
 	// Show updated daily stats
 	stats, _ := GetTodayStatsDaily(appConfig.LogsDir)
@@ -478,21 +496,21 @@ func handleEveryday(args []string) {
 		os.Exit(1)
 	}
 
-	// Filter to only every_day snacks
+	// Filter to only snacks with min_per_day requirement
 	var everydaySnacks []Snack
 	for _, snack := range snacks {
-		if snack.EveryDay {
+		if snack.MinPerDay > 0 {
 			everydaySnacks = append(everydaySnacks, snack)
 		}
 	}
 
 	if len(everydaySnacks) == 0 {
-		fmt.Println("No snacks marked as 'every_day'")
+		fmt.Println("No snacks with min_per_day requirement")
 		return
 	}
 
 	fmt.Println("═══════════════════════════════════════")
-	fmt.Println("  EVERY DAY SNACKS")
+	fmt.Println("  EVERY DAY MOVOS")
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Println()
 
@@ -513,7 +531,7 @@ func handleEveryday(args []string) {
 	for _, snack := range everydaySnacks {
 		count := completedToday[snack.FullCode]
 		status := "❌"
-		if count > 0 {
+		if count >= snack.MinPerDay {
 			status = "✅"
 		}
 
@@ -522,9 +540,9 @@ func handleEveryday(args []string) {
 			snack.FullCode, snack.EffectiveRPE, snack.DurationMin, snack.DurationMax)
 
 		if count > 0 {
-			fmt.Printf("   Completed %d time(s) today\n", count)
+			fmt.Printf("   Completed %d of %d today\n", count, snack.MinPerDay)
 		} else {
-			fmt.Printf("   Not yet done today\n")
+			fmt.Printf("   Not yet done (0 of %d today)\n", snack.MinPerDay)
 		}
 		fmt.Println()
 	}
@@ -587,7 +605,8 @@ func handleInteractive(args []string) {
 		displaySnackInteractive(snack)
 
 		// Get user choice
-		choice := getInteractiveChoice(snack.EveryDay)
+		hasMinimum := snack.MinPerDay > 0
+		choice := getInteractiveChoice(hasMinimum)
 
 		switch choice {
 		case "d": // Done
@@ -598,14 +617,14 @@ func handleInteractive(args []string) {
 		case "s": // Skip
 			handleSkipInteractive(snack)
 			os.Remove(appConfig.CurrentPath) // Clear saved snack
-			filters.SkipDailies = false      // Reset skip dailies flag
+			filters.SkipMinimums = false     // Reset skip minimums flag
 			// Continue loop to get next snack
 
-		case "x": // Skip dailies (only if everyday snack)
-			if snack.EveryDay {
+		case "x": // Skip dailies (only if snack has min_per_day)
+			if snack.MinPerDay > 0 {
 				fmt.Printf("\n⏭️  Skipping dailies for now...\n")
 				os.Remove(appConfig.CurrentPath) // Clear saved snack
-				filters.SkipDailies = true
+				filters.SkipMinimums = true
 				// Continue loop to get next snack (will reset flag after)
 			}
 
@@ -641,12 +660,12 @@ func displaySnackInteractive(snack *Snack) {
 }
 
 // getInteractiveChoice prompts user for action choice
-func getInteractiveChoice(isEveryday bool) string {
+func getInteractiveChoice(hasMinimum bool) string {
 	fmt.Println("What would you like to do?")
 	fmt.Println("  [d] Done (log completion)")
-	fmt.Println("  [s] Skip (try another snack)")
-	if isEveryday {
-		fmt.Println("  [x] Skip dailies (get non-daily snack)")
+	fmt.Println("  [s] Skip (try another movo)")
+	if hasMinimum {
+		fmt.Println("  [x] Skip dailies (ignore min_per_day > 0 movos)")
 	}
 	fmt.Println("  [q] Quit (save for later)")
 	fmt.Println("\n  (Press 'h' for help: movodoro --help)")
@@ -675,7 +694,7 @@ func getInteractiveChoice(isEveryday bool) string {
 
 		// Validate input
 		validChars := []string{"d", "s", "q"}
-		if isEveryday {
+		if hasMinimum {
 			validChars = append(validChars, "x")
 		}
 
@@ -705,11 +724,12 @@ func getInteractiveChoice(isEveryday bool) string {
 
 // handleDoneInteractive handles completing a snack in interactive mode
 func handleDoneInteractive(snack *Snack) {
+	reader := bufio.NewReader(os.Stdin)
+
 	// Prompt for actual duration
 	defaultDuration := snack.GetDefaultDuration()
 	fmt.Printf("\nHow many minutes did you spend? (default: %d): ", defaultDuration)
 
-	reader := bufio.NewReader(os.Stdin)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 
@@ -723,13 +743,30 @@ func handleDoneInteractive(snack *Snack) {
 		}
 	}
 
+	// Prompt for RPE
+	defaultRPE := snack.EffectiveRPE
+	fmt.Printf("How hard was it? RPE (default: %d): ", defaultRPE)
+
+	input, _ = reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+
+	rpe := defaultRPE
+	if input != "" {
+		parsed, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid RPE, using default: %d\n", defaultRPE)
+		} else {
+			rpe = parsed
+		}
+	}
+
 	// Create history entry
 	entry := HistoryEntry{
 		Timestamp: time.Now(),
 		Code:      snack.FullCode,
 		Status:    "done",
 		Duration:  duration,
-		RPE:       snack.EffectiveRPE,
+		RPE:       rpe,
 	}
 
 	// Save to history
@@ -738,7 +775,7 @@ func handleDoneInteractive(snack *Snack) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("\n✅ Marked '%s' as completed (%d minutes, RPE %d)\n", snack.Title, duration, snack.EffectiveRPE)
+	fmt.Printf("\n✅ Marked '%s' as completed (%d minutes, RPE %d)\n", snack.Title, duration, rpe)
 
 	// Show updated daily stats
 	stats, _ := GetTodayStatsDaily(appConfig.LogsDir)

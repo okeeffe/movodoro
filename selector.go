@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	everyDayBoost      = 10.0 // Boost for every_day snacks
+	minPerDayBoost     = 10.0 // Boost for snacks with incomplete min_per_day
 	neverDoneBoost     = 3.0  // Boost for snacks never completed
 	recencyBoost       = 2.0  // Boost for snacks not done in 7+ days
 	recencyDays        = 7    // Days threshold for recency boost
@@ -38,15 +38,15 @@ func SelectSnack(snacks []Snack, filters FilterOptions, maxDailyRPE int) (*Snack
 		return nil, fmt.Errorf("no snacks match the specified filters")
 	}
 
-	// Apply everyday snacks priority (unless explicitly skipped)
-	if !filters.SkipDailies {
-		everydayCandidates, err := filterToIncompleteEveryday(candidates, cfg.LogsDir)
+	// Apply min_per_day priority (unless explicitly skipped)
+	if !filters.SkipMinimums {
+		minimumCandidates, err := filterToIncompleteMinimums(candidates, cfg.LogsDir)
 		if err != nil {
 			return nil, err
 		}
-		// If there are incomplete everyday snacks, use only those
-		if len(everydayCandidates) > 0 {
-			candidates = everydayCandidates
+		// If there are incomplete minimum snacks, use only those
+		if len(minimumCandidates) > 0 {
+			candidates = minimumCandidates
 		}
 	}
 
@@ -133,24 +133,24 @@ func filterSnacks(snacks []Snack, filters FilterOptions) []Snack {
 	return filtered
 }
 
-// filterToIncompleteEveryday returns only everyday snacks that haven't been completed today
-func filterToIncompleteEveryday(snacks []Snack, logsDir string) ([]Snack, error) {
+// filterToIncompleteMinimums returns only snacks that haven't met their min_per_day requirement
+func filterToIncompleteMinimums(snacks []Snack, logsDir string) ([]Snack, error) {
 	var incomplete []Snack
 
 	for _, snack := range snacks {
-		// Only consider everyday snacks
-		if !snack.EveryDay {
+		// Only consider snacks with a minimum requirement
+		if snack.MinPerDay == 0 {
 			continue
 		}
 
-		// Check if done today
+		// Check how many times done today
 		doneToday, _, err := GetCountTodayDaily(logsDir, snack.FullCode)
 		if err != nil {
 			return nil, err
 		}
 
-		// Include if not done yet today
-		if doneToday == 0 {
+		// Include if haven't met minimum yet
+		if doneToday < snack.MinPerDay {
 			incomplete = append(incomplete, snack)
 		}
 	}
@@ -187,9 +187,15 @@ func calculateWeight(snack Snack) (float64, error) {
 	cfg := DefaultConfig()
 	weight := snack.Weight
 
-	// Every-day boost
-	if snack.EveryDay {
-		weight *= everyDayBoost
+	// Min per day boost - applies when snack has minimum and hasn't met it yet
+	if snack.MinPerDay > 0 {
+		doneToday, _, err := GetCountTodayDaily(cfg.LogsDir, snack.FullCode)
+		if err != nil {
+			return 0, err
+		}
+		if doneToday < snack.MinPerDay {
+			weight *= minPerDayBoost
+		}
 	}
 
 	// Never done boost

@@ -23,7 +23,7 @@ type Snack struct {
 	MaxPerDay   int      `yaml:"max_per_day"`
 	MaxPerWeek  int      `yaml:"max_per_week,omitempty"`
 	Weight      float64  `yaml:"weight"`
-	EveryDay    bool     `yaml:"every_day"`
+	MinPerDay   int      `yaml:"min_per_day,omitempty"` // Minimum times per day (for priority)
 	Tags        []string `yaml:"tags"`
 
 	// Computed fields (not in YAML)
@@ -51,7 +51,7 @@ type FilterOptions struct {
 	ExactDuration  int
 	MinRPE         int
 	MaxRPE         int
-	SkipDailies    bool // If true, ignore everyday snacks priority
+	SkipMinimums   bool // If true, ignore min_per_day priority
 }
 
 // DailyStats contains statistics for a given day
