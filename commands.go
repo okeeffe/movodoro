@@ -89,8 +89,8 @@ func handleGet(args []string) {
 		fmt.Fprintf(os.Stderr, "Warning: could not save current snack: %v\n", err)
 	}
 
-	// Display the snack
-	displaySnack(snack)
+	// Display the movo
+	displayMovo(snack)
 }
 
 // handleDone implements the 'done' command
@@ -489,7 +489,7 @@ func formatMovoTags(movo *Movo) string {
 	return fmt.Sprintf(" | %s", strings.Join(tagList, ", "))
 }
 
-func displaySnack(movo *Movo) {
+func displayMovo(movo *Movo) {
 	fmt.Println()
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Printf("  %s\n", movo.Title)
@@ -722,8 +722,8 @@ func handleInteractive(args []string) {
 			fmt.Fprintf(os.Stderr, "Warning: could not save current snack: %v\n", err)
 		}
 
-		// Display the snack
-		displaySnackInteractive(snack)
+		// Display the movo
+		displayMovoInteractive(snack)
 
 		// Get user choice
 		hasMinimum := snack.MinPerDay > 0
@@ -759,8 +759,8 @@ func handleInteractive(args []string) {
 	}
 }
 
-// displaySnackInteractive displays a movo in interactive mode
-func displaySnackInteractive(movo *Movo) {
+// displayMovoInteractive displays a movo in interactive mode
+func displayMovoInteractive(movo *Movo) {
 	fmt.Println()
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Printf("  %s\n", movo.Title)
