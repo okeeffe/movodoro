@@ -98,7 +98,7 @@ Standing or kneeling breath work...
 
 What would you like to do?
   [d] Done (log completion)
-  [s] Skip (try another snack)
+  [s] Skip (try another movo)
   [q] Quit (save for later)
 
   (Press 'h' for help: movodoro --help)
@@ -169,8 +169,8 @@ snacks:
     duration_max: 5
     rpe: 1              # Override default_rpe if needed
     max_per_day: 2      # Can be done twice per day
+    min_per_day: 1      # Prioritized daily (shown first until complete)
     weight: 1.5         # Snack-specific weight multiplier
-    every_day: true     # Prioritized daily (shown first until complete)
     tags: []            # Additional tags beyond category tags
 
   - code: deep-breath
@@ -181,7 +181,7 @@ snacks:
     # rpe: inherits default_rpe (1)
     max_per_day: 1
     weight: 1.0
-    every_day: false
+    # min_per_day: omit for non-daily snacks (defaults to 0)
     tags: []
 ```
 
@@ -203,8 +203,8 @@ snacks:
 - **rpe**: Rate of Perceived Exertion (1-10), inherits `default_rpe` if not set
 - **max_per_day**: Maximum times per day (0 = unlimited)
 - **max_per_week**: Maximum times per week (optional)
+- **min_per_day**: Minimum times per day (e.g., 1, 2), **prioritized daily** until completed this many times
 - **weight**: Snack-specific weight multiplier
-- **every_day**: Boolean, **prioritized daily** (shown first until done each day)
 - **tags**: Additional tags specific to this snack
 
 ### Tag Conventions
@@ -310,21 +310,21 @@ Displays current configuration including movos directory, logs directory, and di
 movodoro everyday
 ```
 
-Shows all snacks marked with `every_day: true` and their completion status for today. Great for tracking your daily movement essentials.
+Shows all snacks with `min_per_day` requirements and their completion status for today. Great for tracking your daily movement essentials.
 
 **Example output:**
 ```
 ═══════════════════════════════════════
-  EVERY DAY SNACKS
+  EVERY DAY MOVOS
 ═══════════════════════════════════════
 
 ✅ Box breathing
    Code: BR-box-breathing | RPE: 1 | Duration: 3-5 min
-   Completed 2 time(s) today
+   Completed 2 of 2 today
 
 ❌ Hip circles and leg swings
    Code: MOB-hip-circles | RPE: 3 | Duration: 5-7 min
-   Not yet done today
+   Not yet done (0 of 1 today)
 
 Summary: 1/2 everyday snacks completed
 ```
@@ -337,43 +337,55 @@ movodoro version
 
 ## How Selection Works
 
-Movodoro uses a priority-based selection system focused on daily essentials first:
+Movodoro uses a priority-based selection system focused on daily minimums first:
 
-### Everyday Snacks Priority
+### Daily Minimums Priority
 
-**Key Concept:** Snacks marked with `every_day: true` are prioritized until you complete them each day.
+**Key Concept:** Snacks with `min_per_day` set (e.g., `min_per_day: 1`) are prioritized until you complete them the required number of times each day.
 
 **How it works:**
-1. Check for incomplete everyday snacks today
+1. Check for incomplete minimums today (where times_done < min_per_day)
 2. If any exist: Only select from those (weighted among themselves)
 3. If all complete: Select from the full snack pool
 
+**Flexible Minimums:**
+- `min_per_day: 1` - Once daily (most common)
+- `min_per_day: 2` - Twice daily (for critical patterns)
+- `min_per_day: 0` or omitted - No daily requirement
+
 **Example daily flow:**
 ```bash
-# Morning - 2 everyday snacks incomplete
-movodoro          # → Meditation (everyday snack)
+# Morning - 2 snacks with min_per_day incomplete
+movodoro          # → Meditation (min_per_day: 1, done 0 times)
 # [s] Skip
 movodoro          # → Meditation again (still incomplete)
 # [x] Skip dailies
 movodoro          # → Kettlebell swings (escaped to non-daily)
 # Exit and come back later
-movodoro          # → Meditation (back to incomplete dailies)
+movodoro          # → Meditation (back to incomplete minimums)
 # [d] Done - mark complete
-movodoro          # → Hip circles (last everyday snack)
+movodoro          # → OS Resets (min_per_day: 1, done 0 times)
 # [d] Done - mark complete
 movodoro          # → Now random from full pool
 ```
 
+**After Meeting Minimum:**
+Even after completing the minimum (e.g., 1/1), snacks with `max_per_day` > `min_per_day` can still be selected from the full pool.
+
+Example with `min_per_day: 1, max_per_day: 2`:
+- After 1st completion: No longer prioritized, but can appear in general pool
+- After 2nd completion: Filtered out entirely for the day
+
 ### Escape Hatch: Skip Dailies
 
-When viewing an everyday snack, press **[x] Skip dailies** to temporarily get a non-daily snack. This:
+When viewing a snack with minimum requirements, press **[x] Skip dailies** to temporarily get a non-minimum snack. This:
 - Does NOT log a skip
-- Gets you one snack from the full pool
-- Next request returns to everyday priority (if still incomplete)
+- Gets you one snack from the full pool (skipping min_per_day priority)
+- Next request returns to minimum priority (if still incomplete)
 
-Or use the `--skip-dailies` flag:
+Or use the `--skip-minimums` flag:
 ```bash
-movodoro get --skip-dailies    # Bypass everyday priority
+movodoro get --skip-minimums    # Bypass min_per_day priority
 ```
 
 ### Within-Category Weight System
@@ -384,8 +396,9 @@ Once the candidate pool is determined, weighted random selection applies:
 Each snack starts with its `weight` value (default: 1.0), multiplied by the category's `weight`.
 
 **Boosts Applied:**
-1. **Never-done boost (3x)**: Snacks you've never completed
-2. **Recency boost (2x)**: Snacks not done in 7+ days
+1. **Minimum boost (10x)**: Snacks with incomplete `min_per_day` (e.g., done 0 times when min_per_day: 1)
+2. **Never-done boost (3x)**: Snacks you've never completed
+3. **Recency boost (2x)**: Snacks not done in 7+ days
 
 **Filters:**
 - **Tags**: Only snacks matching ALL specified tags
@@ -440,13 +453,14 @@ Rate of Perceived Exertion (1-10):
 
 ## Tips
 
-1. **Mark 2-3 movements as `every_day: true`**: These become your daily non-negotiables (breath work, fundamental patterns, etc.)
-2. **Use interactive mode**: Just type `movodoro` and let it guide you through your dailies
-3. **Skip dailies when pressed for time**: Use `[x]` to grab a quick 3-min snack when you can't do your 10-min meditation
-4. **Check your progress**: Run `movodoro everyday` to see what you've completed
-5. **Recovery in afternoon**: Let auto-recovery kick in when you hit RPE 30, or manually use `movodoro get -R 2`
-6. **Track in markdown**: Use `movodoro report --md >> workout-log.md` to append to your training log
-7. **Non-interactive for scripts**: Use `movodoro get -t kbx` for automation or specific filters
+1. **Set 2-3 movements with `min_per_day: 1`**: These become your daily non-negotiables (breath work, fundamental patterns, etc.)
+2. **Use flexible minimums**: For critical patterns, use `min_per_day: 2` to ensure you do them twice daily
+3. **Use interactive mode**: Just type `movodoro` and let it guide you through your daily minimums
+4. **Skip dailies when pressed for time**: Use `[x]` to grab a quick 3-min snack when you can't do your 10-min meditation
+5. **Check your progress**: Run `movodoro everyday` to see what you've completed
+6. **Recovery in afternoon**: Let auto-recovery kick in when you hit RPE 30, or manually use `movodoro get -R 2`
+7. **Track in markdown**: Use `movodoro report --md >> workout-log.md` to append to your training log
+8. **Non-interactive for scripts**: Use `movodoro get -t kbx` for automation or specific filters
 
 ## Development
 
