@@ -36,6 +36,50 @@ Or use it directly:
 ./movodoro help
 ```
 
+### Upgrading to v1.0.0
+
+**Breaking Change:** Version 1.0.0 introduces a new CSV log format with subset tracking.
+
+If you're upgrading from v0.x.x, run the migration command to convert your existing logs:
+
+```bash
+movodoro migrate-logs-to-csv
+```
+
+This will:
+- Convert all log files from space-separated to CSV format
+- Add a `subset` column (empty for old entries)
+- Create backup files (`.bak`) for safety
+- Skip files already in CSV format
+
+**Migration output:**
+```
+═══════════════════════════════════════
+  MIGRATE LOGS TO CSV FORMAT (v1.0.0)
+═══════════════════════════════════════
+
+Found 4 log file(s) to check
+
+→  20251012.log: Converting to CSV...
+✅ 20251012.log → 20251012.csv: Converted 6 entries (backup: 20251012.log.bak)
+...
+
+Migration complete:
+  Converted: 4
+  Skipped:   0 (already CSV)
+  Failed:    0
+═══════════════════════════════════════
+
+Backup files (.bak) have been created.
+After verifying the migration, you can delete them:
+  rm ~/.movodoro/logs/*.bak
+```
+
+**What changed in v1.0.0:**
+- ✨ **Subsets feature**: Restrict movement selection to named collections (e.g., `back-safe`, `travel`)
+- 📊 **CSV log format**: Easier analysis, subset tracking, future extensibility
+- 🏷️ **Subset column in reports**: See which subset was active when viewing history
+
 ## Configuration
 
 Movodoro looks for movement snacks in a configurable directory. You have two options:
@@ -74,7 +118,7 @@ This will show:
 ### File Locations
 
 Movodoro stores data in `~/.movodoro/`:
-- `~/.movodoro/logs/YYYYMMDD.log` - Daily history logs
+- `~/.movodoro/logs/YYYYMMDD.csv` - Daily history logs (CSV format)
 - `~/.movodoro/current` - Currently selected snack code
 
 ## Quick Start
@@ -518,29 +562,33 @@ When your daily cumulative RPE reaches 30 (configurable), Movodoro automatically
 
 ## File Formats
 
-### Daily Log Files
+### Daily Log Files (CSV Format - v1.0.0+)
 
-Location: `~/.movodoro/logs/YYYYMMDD.log`
+Location: `~/.movodoro/logs/YYYYMMDD.csv`
 
-Each day gets its own log file (e.g., `20251012.log` for October 12, 2025).
+Each day gets its own CSV file (e.g., `20251012.csv` for October 12, 2025).
 
-Format: Append-only log, one line per entry
-```
-TIMESTAMP CODE STATUS DURATION RPE
+Format: CSV with header row
+```csv
+timestamp,code,status,duration,rpe,subset
 ```
 
-Example `~/.movodoro/logs/20251012.log`:
+Example `~/.movodoro/logs/20251012.csv`:
+```csv
+timestamp,code,status,duration,rpe,subset
+2025-10-12T14:09:37+01:00,GUP-naked-getups,done,4,3,
+2025-10-12T14:15:22+01:00,RB-box-breathing,done,5,1,
+2025-10-12T14:20:18+01:00,CF-shield-cast,skip,0,0,back-safe
 ```
-2025-10-12T14:09:37+01:00 GUP-naked-getups done 4 3
-2025-10-12T14:15:22+01:00 RB-box-breathing done 5 1
-2025-10-12T14:20:18+01:00 CF-shield-cast skip 0 0
-```
+
+The `subset` column tracks which subset (if any) was active when the entry was logged, enabling historical analysis of subset usage.
 
 **Benefits of daily files:**
 - Easy archival and backup
 - Simple cleanup (just delete a file)
 - Fast today-focused operations
 - Natural organization by date
+- CSV format allows easy import into spreadsheets and analysis tools
 
 ### Current Snack
 

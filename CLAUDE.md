@@ -60,11 +60,14 @@ The selection system uses a **priority-based weighted random** approach with a m
 
 ### Data Storage (history.go)
 
-Uses **daily log files** instead of a single monolithic file:
-- Each day gets its own file: `~/.movodoro/logs/YYYYMMDD.log`
-- Format: `TIMESTAMP CODE STATUS DURATION RPE` (space-separated)
+Uses **daily CSV log files** instead of a single monolithic file:
+- Each day gets its own file: `~/.movodoro/logs/YYYYMMDD.csv`
+- Format: CSV with header row: `timestamp,code,status,duration,rpe,subset`
+- **v1.0.0 change**: Migrated from space-separated to CSV format for better extensibility
+- The `subset` field tracks which subset was active when the entry was logged (empty if none)
 - Enables fast today-focused operations and easy cleanup
 - All "today" operations (`GetTodayStatsDaily`, `GetCountTodayDaily`) only read current day's file
+- `LoadAllHistory()` glob pattern looks for `*.csv` files
 
 ### YAML Loading (loader.go)
 
@@ -122,6 +125,19 @@ RPE (Rate of Perceived Exertion) 1-10 scale:
 - Auto-recovery at threshold (default: 30 total RPE)
 - Users can override actual RPE when marking done
 
+### Version 1.0.0 Migration
+
+The `migrate-logs-to-csv` command (`handleMigrateLogsToCsv` in commands.go) converts old space-separated logs to CSV format:
+- Looks for `*.log` files in the logs directory
+- Detects old format (5 space-separated fields) vs new format (CSV header)
+- Converts old entries and writes as `.csv` files with header
+- Creates `.log.bak` backup files
+- Skips files already in CSV format (idempotent)
+- Old format: `TIMESTAMP CODE STATUS DURATION RPE`
+- New format: `timestamp,code,status,duration,rpe,subset` (CSV with header)
+
+**Note**: Migration sets `subset` field to empty string for old entries since subset tracking was added in v1.0.0.
+
 ## File Structure
 
 ```
@@ -164,13 +180,49 @@ All history operations should use the daily log functions:
 - `LoadAllHistory()` for full history (use sparingly)
 - `AppendTodayLog()` for new entries
 
+## Git Commit Format
+
+This project uses **Conventional Commits** format:
+
+```
+<type>: <description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `refactor`: Code refactoring (no functional changes)
+- `docs`: Documentation changes
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks (dependencies, build, etc.)
+
+**Examples:**
+```
+feat: add subset tracking to history entries
+refactor: rename Snack type to Movo
+docs: update README for v1.0.0 release
+```
+
+**Guidelines:**
+- Keep the first line under 72 characters
+- Use imperative mood ("add" not "added" or "adds")
+- Don't capitalize the first letter after the colon
+- No period at the end of the description
+- Body and footer are optional but encouraged for complex changes
+
 ## Testing Notes
 
 - Tests use `testdata/movos/` directory with fixture YAML files
 - **Important**: `testdata/movos/subsets.yaml` exists for subset tests - don't confuse with production subsets
 - Use `TestConfig()` helper for isolated test environments, but note it uses `testdata/test-movos` which doesn't exist - set `MOVODORO_MOVOS_DIR=testdata/movos` manually in tests instead
-- Daily log tests should clean up created files
+- Daily log tests should clean up created `.csv` files
+- **v1.0.0**: Test log fixtures should be in CSV format with header row
 - Selection tests may need multiple runs due to randomness (see `*_analysis_test.go`)
+- **TODO**: Add tests for `migrate-logs-to-csv` command with both old and new format fixtures
 
 ### Subset Testing Pattern
 
