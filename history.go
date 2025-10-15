@@ -1,19 +1,18 @@
 package main
 
 import (
-	"bufio"
+	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 )
 
 // GetDailyLogPath returns the path for a specific date's log file
 func GetDailyLogPath(logsDir string, date time.Time) string {
-	filename := date.Format("20060102") + ".log"
+	filename := date.Format("20060102") + ".csv"
 	return filepath.Join(logsDir, filename)
 }
 
@@ -27,7 +26,7 @@ func ensureLogsDir(logsDir string) error {
 	return os.MkdirAll(logsDir, 0755)
 }
 
-// LoadDailyLog loads entries from a specific daily log file
+// LoadDailyLog loads entries from a specific daily log file (CSV format)
 func LoadDailyLog(logsDir string, date time.Time) ([]HistoryEntry, error) {
 	logPath := GetDailyLogPath(logsDir, date)
 
@@ -40,25 +39,28 @@ func LoadDailyLog(logsDir string, date time.Time) ([]HistoryEntry, error) {
 	}
 	defer file.Close()
 
-	var entries []HistoryEntry
-	scanner := bufio.NewScanner(file)
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		// If CSV parsing fails, check if it's old format and provide helpful error
+		return nil, fmt.Errorf("⚠️  Error reading log file. If this is an old format log, run 'movodoro migrate' to convert to v1.0.0 CSV format: %w", err)
+	}
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
+	var entries []HistoryEntry
+
+	for i, record := range records {
+		// Skip header row
+		if i == 0 && record[0] == "timestamp" {
 			continue
 		}
 
-		entry, err := parseHistoryLine(line)
+		entry, err := parseCSVRecord(record)
 		if err != nil {
+			// Skip invalid entries but continue processing
 			continue
 		}
 
 		entries = append(entries, entry)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading log file: %w", err)
 	}
 
 	return entries, nil
@@ -91,8 +93,8 @@ func LoadAllHistory(logsDir string) ([]HistoryEntry, error) {
 		return nil, err
 	}
 
-	// Find all .log files
-	pattern := filepath.Join(logsDir, "*.log")
+	// Find all .csv files
+	pattern := filepath.Join(logsDir, "*.csv")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, fmt.Errorf("error finding log files: %w", err)
@@ -102,39 +104,45 @@ func LoadAllHistory(logsDir string) ([]HistoryEntry, error) {
 		return []HistoryEntry{}, nil
 	}
 
-	// Sort files (they're named YYYYMMDD.log so alphabetical = chronological)
+	// Sort files (they're named YYYYMMDD.csv so alphabetical = chronological)
 	sort.Strings(files)
 
 	var allEntries []HistoryEntry
 
-	for _, file := range files {
-		f, err := os.Open(file)
+	for _, filePath := range files {
+		f, err := os.Open(filePath)
 		if err != nil {
 			continue
 		}
 
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if line == "" {
+		reader := csv.NewReader(f)
+		records, err := reader.ReadAll()
+		f.Close()
+
+		if err != nil {
+			// Skip files that can't be parsed as CSV
+			continue
+		}
+
+		for i, record := range records {
+			// Skip header row
+			if i == 0 && len(record) > 0 && record[0] == "timestamp" {
 				continue
 			}
 
-			entry, err := parseHistoryLine(line)
+			entry, err := parseCSVRecord(record)
 			if err != nil {
 				continue
 			}
 
 			allEntries = append(allEntries, entry)
 		}
-
-		f.Close()
 	}
 
 	return allEntries, nil
 }
 
-// AppendTodayLog appends an entry to today's log file
+// AppendTodayLog appends an entry to today's log file in CSV format
 func AppendTodayLog(logsDir string, entry HistoryEntry) error {
 	// Ensure logs directory exists
 	if err := ensureLogsDir(logsDir); err != nil {
@@ -143,22 +151,38 @@ func AppendTodayLog(logsDir string, entry HistoryEntry) error {
 
 	logPath := GetTodayLogPath(logsDir)
 
+	// Check if file exists and is empty (need to write header)
+	fileInfo, err := os.Stat(logPath)
+	writeHeader := err != nil || fileInfo.Size() == 0
+
 	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("error opening log file: %w", err)
 	}
 	defer file.Close()
 
-	line := fmt.Sprintf("%s %s %s %d %d\n",
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write header if this is a new/empty file
+	if writeHeader {
+		if err := writer.Write([]string{"timestamp", "code", "status", "duration", "rpe", "subset"}); err != nil {
+			return fmt.Errorf("error writing CSV header: %w", err)
+		}
+	}
+
+	// Write the entry
+	record := []string{
 		entry.Timestamp.Format(time.RFC3339),
 		entry.Code,
 		entry.Status,
-		entry.Duration,
-		entry.RPE,
-	)
+		strconv.Itoa(entry.Duration),
+		strconv.Itoa(entry.RPE),
+		entry.Subset,
+	}
 
-	if _, err := file.WriteString(line); err != nil {
-		return fmt.Errorf("error writing to log file: %w", err)
+	if err := writer.Write(record); err != nil {
+		return fmt.Errorf("error writing CSV record: %w", err)
 	}
 
 	return nil
@@ -256,36 +280,36 @@ func ClearTodayLog(logsDir string) error {
 	return nil
 }
 
-// parseHistoryLine parses a single line: TIMESTAMP CODE STATUS DURATION RPE
-func parseHistoryLine(line string) (HistoryEntry, error) {
-	parts := strings.Fields(line)
-	if len(parts) != 5 {
-		return HistoryEntry{}, fmt.Errorf("expected 5 fields, got %d", len(parts))
+// parseCSVRecord parses a CSV record: timestamp,code,status,duration,rpe,subset
+func parseCSVRecord(record []string) (HistoryEntry, error) {
+	if len(record) != 6 {
+		return HistoryEntry{}, fmt.Errorf("expected 6 fields, got %d", len(record))
 	}
 
 	// Parse timestamp
-	timestamp, err := time.Parse(time.RFC3339, parts[0])
+	timestamp, err := time.Parse(time.RFC3339, record[0])
 	if err != nil {
 		return HistoryEntry{}, fmt.Errorf("invalid timestamp: %w", err)
 	}
 
 	// Parse duration
-	duration, err := strconv.Atoi(parts[3])
+	duration, err := strconv.Atoi(record[3])
 	if err != nil {
 		return HistoryEntry{}, fmt.Errorf("invalid duration: %w", err)
 	}
 
 	// Parse RPE
-	rpe, err := strconv.Atoi(parts[4])
+	rpe, err := strconv.Atoi(record[4])
 	if err != nil {
 		return HistoryEntry{}, fmt.Errorf("invalid RPE: %w", err)
 	}
 
 	return HistoryEntry{
 		Timestamp: timestamp,
-		Code:      parts[1],
-		Status:    parts[2],
+		Code:      record[1],
+		Status:    record[2],
 		Duration:  duration,
 		RPE:       rpe,
+		Subset:    record[5],
 	}, nil
 }

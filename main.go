@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-const version = "0.1.0"
+const version = "1.0.0"
 
 func main() {
 	// If no command provided (or starts with --), enter interactive mode
@@ -33,6 +33,8 @@ func main() {
 		handleEveryday(os.Args[2:])
 	case "subsets":
 		handleSubsets(os.Args[2:])
+	case "migrate-logs-to-csv":
+		handleMigrateLogsToCsv(os.Args[2:])
 	case "version", "--version", "-v":
 		fmt.Printf("movodoro version %s\n", version)
 	case "help", "--help", "-h":
@@ -60,6 +62,7 @@ COMMANDS:
     config              Show current configuration
     everyday            Show "every day" snacks and completion status
     subsets             List available subsets from subsets.yaml
+    migrate-logs-to-csv Migrate old log files to v1.0.0 CSV format
     version             Show version information
     help                Show this help message
 

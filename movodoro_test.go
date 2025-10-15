@@ -9,37 +9,42 @@ import (
 
 // Unit Tests
 
-func TestParseHistoryLine(t *testing.T) {
+func TestParseCSVRecord(t *testing.T) {
 	tests := []struct {
 		name    string
-		line    string
+		record  []string
 		wantErr bool
 	}{
 		{
-			name:    "valid line",
-			line:    "2025-10-12T14:09:37+01:00 GUP-naked-getups done 4 3",
+			name:    "valid record",
+			record:  []string{"2025-10-12T14:09:37+01:00", "GUP-naked-getups", "done", "4", "3", ""},
+			wantErr: false,
+		},
+		{
+			name:    "valid record with subset",
+			record:  []string{"2025-10-12T14:09:37+01:00", "GUP-naked-getups", "done", "4", "3", "back-safe"},
 			wantErr: false,
 		},
 		{
 			name:    "invalid timestamp",
-			line:    "bad-timestamp GUP-naked-getups done 4 3",
+			record:  []string{"bad-timestamp", "GUP-naked-getups", "done", "4", "3", ""},
 			wantErr: true,
 		},
 		{
 			name:    "wrong number of fields",
-			line:    "2025-10-12T14:09:37+01:00 GUP-naked-getups done",
+			record:  []string{"2025-10-12T14:09:37+01:00", "GUP-naked-getups", "done"},
 			wantErr: true,
 		},
 		{
 			name:    "invalid duration",
-			line:    "2025-10-12T14:09:37+01:00 GUP-naked-getups done abc 3",
+			record:  []string{"2025-10-12T14:09:37+01:00", "GUP-naked-getups", "done", "abc", "3", ""},
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entry, err := parseHistoryLine(tt.line)
+			entry, err := parseCSVRecord(tt.record)
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("expected error but got none")
@@ -59,6 +64,12 @@ func TestParseHistoryLine(t *testing.T) {
 				}
 				if entry.RPE != 3 {
 					t.Errorf("expected RPE 3, got %d", entry.RPE)
+				}
+				// Check subset if provided
+				if len(tt.record) > 5 && tt.record[5] != "" {
+					if entry.Subset != tt.record[5] {
+						t.Errorf("expected subset %s, got %s", tt.record[5], entry.Subset)
+					}
 				}
 			}
 		})

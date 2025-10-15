@@ -40,6 +40,7 @@ type HistoryEntry struct {
 	Status    string // "done" or "skip"
 	Duration  int    // actual duration in minutes
 	RPE       int    // RPE value
+	Subset    string // Active subset when entry was logged (empty if none)
 }
 
 // FilterOptions contains all filtering options for snack selection
