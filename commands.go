@@ -2,9 +2,11 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -183,6 +185,7 @@ func handleDone(args []string) {
 		Status:    "done",
 		Duration:  duration,
 		RPE:       rpe,
+		Subset:    appConfig.ActiveSubset,
 	}
 
 	// Save to history
@@ -243,6 +246,7 @@ func handleSkip(args []string) {
 		Status:    "skip",
 		Duration:  0,
 		RPE:       0,
+		Subset:    appConfig.ActiveSubset,
 	}
 
 	// Save to history
@@ -310,11 +314,37 @@ func showDayReport(verbose bool) {
 		}
 	}
 
+	// Detect active subset(s) from entries
+	subsetMap := make(map[string]bool)
+	for _, entry := range stats.CompletedSnacks {
+		if entry.Subset != "" {
+			subsetMap[entry.Subset] = true
+		}
+	}
+	for _, entry := range stats.SkippedSnacks {
+		if entry.Subset != "" {
+			subsetMap[entry.Subset] = true
+		}
+	}
+
+	var subsets []string
+	for subset := range subsetMap {
+		subsets = append(subsets, subset)
+	}
+
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Printf("  TODAY'S MOVODORO REPORT\n")
 	fmt.Printf("  %s\n", stats.Date.Format("Monday, January 2, 2006"))
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Println()
+
+	if len(subsets) > 0 {
+		fmt.Println("Active subset(s):")
+		for _, subset := range subsets {
+			fmt.Printf("  - %s\n", subset)
+		}
+		fmt.Println()
+	}
 
 	fmt.Printf("📊 Summary:\n")
 	fmt.Printf("   Total movos:     %d\n", len(stats.CompletedSnacks))
@@ -325,31 +355,39 @@ func showDayReport(verbose bool) {
 	if len(stats.CompletedSnacks) > 0 {
 		fmt.Printf("✅ Completed:\n")
 		for _, entry := range stats.CompletedSnacks {
+			subsetStr := ""
+			if entry.Subset != "" {
+				subsetStr = ", " + entry.Subset
+			}
+
 			if verbose {
 				movo := movoMap[entry.Code]
 				if movo != nil {
 					tagsStr := formatMovoTags(movo)
-					fmt.Printf("   %s - %s [%s] (%dm, RPE %d)%s\n",
+					fmt.Printf("   %s - %s [%s] (%dm, RPE %d%s)%s\n",
 						entry.Timestamp.Format("15:04"),
 						movo.Title,
 						entry.Code,
 						entry.Duration,
 						entry.RPE,
+						subsetStr,
 						tagsStr)
 				} else {
 					// Fallback if snack not found
-					fmt.Printf("   %s - %s (%dm, RPE %d)\n",
+					fmt.Printf("   %s - %s (%dm, RPE %d%s)\n",
 						entry.Timestamp.Format("15:04"),
 						entry.Code,
 						entry.Duration,
-						entry.RPE)
+						entry.RPE,
+						subsetStr)
 				}
 			} else {
-				fmt.Printf("   %s - %s (%dm, RPE %d)\n",
+				fmt.Printf("   %s - %s (%dm, RPE %d%s)\n",
 					entry.Timestamp.Format("15:04"),
 					entry.Code,
 					entry.Duration,
-					entry.RPE)
+					entry.RPE,
+					subsetStr)
 			}
 		}
 		fmt.Println()
@@ -405,7 +443,34 @@ func showDayReportMarkdown(verbose bool) {
 		}
 	}
 
+	// Detect active subset(s) from entries
+	subsetMap := make(map[string]bool)
+	for _, entry := range stats.CompletedSnacks {
+		if entry.Subset != "" {
+			subsetMap[entry.Subset] = true
+		}
+	}
+	for _, entry := range stats.SkippedSnacks {
+		if entry.Subset != "" {
+			subsetMap[entry.Subset] = true
+		}
+	}
+
+	var subsets []string
+	for subset := range subsetMap {
+		subsets = append(subsets, subset)
+	}
+
 	fmt.Printf("# Movodoro Report - %s\n\n", stats.Date.Format("Monday, January 2, 2006"))
+
+	if len(subsets) > 0 {
+		fmt.Println("**Active subset(s):**")
+		fmt.Println()
+		for _, subset := range subsets {
+			fmt.Printf("- %s\n", subset)
+		}
+		fmt.Println()
+	}
 
 	fmt.Println("## Summary")
 	fmt.Println()
@@ -418,31 +483,39 @@ func showDayReportMarkdown(verbose bool) {
 		fmt.Println("## Completed")
 		fmt.Println()
 		for _, entry := range stats.CompletedSnacks {
+			subsetStr := ""
+			if entry.Subset != "" {
+				subsetStr = ", " + entry.Subset
+			}
+
 			if verbose {
 				movo := movoMap[entry.Code]
 				if movo != nil {
 					tagsStr := formatMovoTags(movo)
-					fmt.Printf("- **%s** - %s [`%s`] (%d min, RPE %d)%s\n",
+					fmt.Printf("- **%s** - %s [`%s`] (%d min, RPE %d%s)%s\n",
 						entry.Timestamp.Format("15:04"),
 						movo.Title,
 						entry.Code,
 						entry.Duration,
 						entry.RPE,
+						subsetStr,
 						tagsStr)
 				} else {
 					// Fallback if snack not found
-					fmt.Printf("- **%s** - `%s` (%d min, RPE %d)\n",
+					fmt.Printf("- **%s** - `%s` (%d min, RPE %d%s)\n",
 						entry.Timestamp.Format("15:04"),
 						entry.Code,
 						entry.Duration,
-						entry.RPE)
+						entry.RPE,
+						subsetStr)
 				}
 			} else {
-				fmt.Printf("- **%s** - `%s` (%d min, RPE %d)\n",
+				fmt.Printf("- **%s** - `%s` (%d min, RPE %d%s)\n",
 					entry.Timestamp.Format("15:04"),
 					entry.Code,
 					entry.Duration,
-					entry.RPE)
+					entry.RPE,
+					subsetStr)
 			}
 		}
 		fmt.Println()
@@ -960,6 +1033,7 @@ func handleDoneInteractive(movo *Movo) {
 		Status:    "done",
 		Duration:  duration,
 		RPE:       rpe,
+		Subset:    appConfig.ActiveSubset,
 	}
 
 	// Save to history
@@ -984,6 +1058,7 @@ func handleSkipInteractive(movo *Movo) {
 		Status:    "skip",
 		Duration:  0,
 		RPE:       0,
+		Subset:    appConfig.ActiveSubset,
 	}
 
 	// Save to history
@@ -1033,4 +1108,188 @@ func handleSubsets(args []string) {
 	fmt.Printf("  movodoro get --subset SUBSET_NAME\n")
 	fmt.Printf("  movodoro --subset SUBSET_NAME          # Interactive mode\n")
 	fmt.Printf("  export MOVODORO_ACTIVE_SUBSET=SUBSET_NAME\n")
+}
+
+// handleMigrateLogsToCsv implements the 'migrate-logs-to-csv' command
+func handleMigrateLogsToCsv(args []string) {
+	cfg := appConfig
+
+	fmt.Println("═══════════════════════════════════════")
+	fmt.Println("  MIGRATE LOGS TO CSV FORMAT (v1.0.0)")
+	fmt.Println("═══════════════════════════════════════")
+	fmt.Println()
+
+	// Find all .log files
+	pattern := filepath.Join(cfg.LogsDir, "*.log")
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error finding log files: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(files) == 0 {
+		fmt.Println("No log files found.")
+		return
+	}
+
+	fmt.Printf("Found %d log file(s) to check\n\n", len(files))
+
+	converted := 0
+	skipped := 0
+	failed := 0
+
+	for _, filePath := range files {
+		filename := filepath.Base(filePath)
+		
+		// Try to detect if it's already CSV format
+		file, err := os.Open(filePath)
+		if err != nil {
+			fmt.Printf("⚠️  %s: Could not open (%v)\n", filename, err)
+			failed++
+			continue
+		}
+
+		scanner := bufio.NewScanner(file)
+		var firstLine string
+		if scanner.Scan() {
+			firstLine = scanner.Text()
+		}
+		file.Close()
+
+		// Check if already CSV (has header)
+		if strings.HasPrefix(firstLine, "timestamp,") {
+			fmt.Printf("✓  %s: Already in CSV format\n", filename)
+			skipped++
+			continue
+		}
+
+		// Old format detected - convert it
+		fmt.Printf("→  %s: Converting to CSV...\n", filename)
+
+		// Read all old format lines
+		file, err = os.Open(filePath)
+		if err != nil {
+			fmt.Printf("⚠️  %s: Could not read (%v)\n", filename, err)
+			failed++
+			continue
+		}
+
+		var entries []HistoryEntry
+		scanner = bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if line == "" {
+				continue
+			}
+
+			// Parse old space-separated format: TIMESTAMP CODE STATUS DURATION RPE
+			parts := strings.Fields(line)
+			if len(parts) != 5 {
+				continue
+			}
+
+			timestamp, err := time.Parse(time.RFC3339, parts[0])
+			if err != nil {
+				continue
+			}
+
+			duration, err := strconv.Atoi(parts[3])
+			if err != nil {
+				continue
+			}
+
+			rpe, err := strconv.Atoi(parts[4])
+			if err != nil {
+				continue
+			}
+
+			entries = append(entries, HistoryEntry{
+				Timestamp: timestamp,
+				Code:      parts[1],
+				Status:    parts[2],
+				Duration:  duration,
+				RPE:       rpe,
+				Subset:    "", // Old logs don't have subset info
+			})
+		}
+		file.Close()
+
+		if len(entries) == 0 {
+			fmt.Printf("⚠️  %s: No valid entries found\n", filename)
+			failed++
+			continue
+		}
+
+		// Create backup
+		backupPath := filePath + ".bak"
+		if err := os.Rename(filePath, backupPath); err != nil {
+			fmt.Printf("⚠️  %s: Could not create backup (%v)\n", filename, err)
+			failed++
+			continue
+		}
+
+		// Write new CSV format (with .csv extension)
+		// Change from .log to .csv extension
+		newFilePath := strings.TrimSuffix(filePath, ".log") + ".csv"
+		newFile, err := os.Create(newFilePath)
+		if err != nil {
+			// Restore backup
+			os.Rename(backupPath, filePath)
+			fmt.Printf("⚠️  %s: Could not create new file (%v)\n", filename, err)
+			failed++
+			continue
+		}
+
+		writer := csv.NewWriter(newFile)
+		
+		// Write header
+		if err := writer.Write([]string{"timestamp", "code", "status", "duration", "rpe", "subset"}); err != nil {
+			newFile.Close()
+			os.Rename(backupPath, filePath)
+			fmt.Printf("⚠️  %s: Could not write header (%v)\n", filename, err)
+			failed++
+			continue
+		}
+
+		// Write entries
+		for _, entry := range entries {
+			record := []string{
+				entry.Timestamp.Format(time.RFC3339),
+				entry.Code,
+				entry.Status,
+				strconv.Itoa(entry.Duration),
+				strconv.Itoa(entry.RPE),
+				entry.Subset,
+			}
+			if err := writer.Write(record); err != nil {
+				newFile.Close()
+				os.Rename(backupPath, filePath)
+				fmt.Printf("⚠️  %s: Could not write entries (%v)\n", filename, err)
+				failed++
+				continue
+			}
+		}
+
+		writer.Flush()
+		newFile.Close()
+
+		newFilename := strings.TrimSuffix(filename, ".log") + ".csv"
+		fmt.Printf("✅ %s → %s: Converted %d entries (backup: %s.bak)\n", filename, newFilename, len(entries), filename)
+		converted++
+	}
+
+	fmt.Println()
+	fmt.Println("═══════════════════════════════════════")
+	fmt.Printf("Migration complete:\n")
+	fmt.Printf("  Converted: %d\n", converted)
+	fmt.Printf("  Skipped:   %d (already CSV)\n", skipped)
+	fmt.Printf("  Failed:    %d\n", failed)
+	fmt.Println("═══════════════════════════════════════")
+	
+	if converted > 0 {
+		fmt.Println()
+		fmt.Println("Backup files (.bak) have been created.")
+		fmt.Println("After verifying the migration, you can delete them:")
+		fmt.Printf("  rm %s/*.bak\n", cfg.LogsDir)
+	}
 }
