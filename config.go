@@ -7,10 +7,11 @@ import (
 
 // Config holds configuration for the application
 type Config struct {
-	LogsDir     string
-	CurrentPath string
-	MovosDir    string
-	MaxDailyRPE int
+	LogsDir       string
+	CurrentPath   string
+	MovosDir      string
+	MaxDailyRPE   int
+	ActiveSubset  string // From MOVODORO_ACTIVE_SUBSET env var
 }
 
 // DefaultConfig returns the default configuration
@@ -27,11 +28,15 @@ func DefaultConfig() *Config {
 		movosDir = filepath.Join(home, ".movodoro", "movos")
 	}
 
+	// Check for MOVODORO_ACTIVE_SUBSET environment variable
+	activeSubset := os.Getenv("MOVODORO_ACTIVE_SUBSET")
+
 	return &Config{
-		LogsDir:     filepath.Join(home, ".movodoro", "logs"),
-		CurrentPath: filepath.Join(home, ".movodoro", "current"),
-		MovosDir:    movosDir,
-		MaxDailyRPE: 30,
+		LogsDir:      filepath.Join(home, ".movodoro", "logs"),
+		CurrentPath:  filepath.Join(home, ".movodoro", "current"),
+		MovosDir:     movosDir,
+		MaxDailyRPE:  30,
+		ActiveSubset: activeSubset,
 	}
 }
 

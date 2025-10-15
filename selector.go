@@ -38,6 +38,18 @@ func SelectSnack(snacks []Movo, filters FilterOptions, maxDailyRPE int) (*Movo, 
 		return nil, fmt.Errorf("no snacks match the specified filters")
 	}
 
+	// Apply subset filter if active
+	if filters.Subset != "" {
+		var err error
+		candidates, err = filterBySubset(candidates, filters.Subset, cfg.MovosDir)
+		if err != nil {
+			return nil, fmt.Errorf("error applying subset filter: %w", err)
+		}
+		if len(candidates) == 0 {
+			return nil, fmt.Errorf("no snacks match the subset '%s' (after applying other filters)", filters.Subset)
+		}
+	}
+
 	// Apply min_per_day priority (unless explicitly skipped)
 	if !filters.SkipMinimums {
 		minimumCandidates, err := filterToIncompleteMinimums(candidates, cfg.LogsDir)
@@ -156,6 +168,37 @@ func filterToIncompleteMinimums(snacks []Movo, logsDir string) ([]Movo, error) {
 	}
 
 	return incomplete, nil
+}
+
+// filterBySubset filters snacks to only those in the specified subset
+func filterBySubset(snacks []Movo, subsetName string, movosDir string) ([]Movo, error) {
+	// Load subsets configuration
+	subsetsConfig, err := LoadSubsets(movosDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the subset
+	subset, exists := subsetsConfig.Subsets[subsetName]
+	if !exists {
+		return nil, fmt.Errorf("subset '%s' not found in subsets.yaml", subsetName)
+	}
+
+	// Create a set of allowed codes
+	allowedCodes := make(map[string]bool)
+	for _, code := range subset.Codes {
+		allowedCodes[code] = true
+	}
+
+	// Filter to only snacks in the subset
+	var filtered []Movo
+	for _, snack := range snacks {
+		if allowedCodes[snack.FullCode] {
+			filtered = append(filtered, snack)
+		}
+	}
+
+	return filtered, nil
 }
 
 // filterByFrequency removes snacks that have hit their daily/weekly limits

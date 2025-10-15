@@ -128,6 +128,7 @@ movodoro done               # Mark current snack as done
 movodoro skip               # Skip current snack
 movodoro report             # View today's report
 movodoro everyday           # Check daily essential snacks
+movodoro subsets            # List available subsets
 movodoro config             # Show configuration
 ```
 
@@ -223,6 +224,86 @@ Each snack gets a full code: `{CATEGORY_CODE}-{snack-code}`
 
 Example: `RB-box-breathing` (Reset & Breath - Box Breathing)
 
+## Subsets: Restricting Movement Selection
+
+Subsets allow you to restrict movement selection to a specific collection of movos. Perfect for injury recovery, travel, equipment constraints, or seasonal training phases.
+
+### Creating Subsets
+
+Create a `subsets.yaml` file in your movos directory:
+
+```yaml
+# $MOVODORO_MOVOS_DIR/subsets.yaml
+subsets:
+  back-safe:
+    description: "Safe movements during back injury recovery"
+    codes:
+      - BS-meditation
+      - BS-box-breathing
+      - OS-resets
+      - OS-shoulder-rolls
+      - BS-singleleg-reach
+
+  travel:
+    description: "Bodyweight-only movements requiring no equipment"
+    codes:
+      - BS-meditation
+      - OS-resets
+      - BS-singleleg-reach
+      - MI-shadowbox
+
+  recovery:
+    description: "Very light movements (RPE ≤ 2) for active recovery"
+    codes:
+      - BS-meditation
+      - BS-box-breathing
+      - OS-resets
+```
+
+### Using Subsets
+
+**Three ways to activate a subset:**
+
+1. **Per-command** (one-time use):
+   ```bash
+   movodoro get --subset back-safe
+   ```
+
+2. **Interactive mode**:
+   ```bash
+   movodoro --subset back-safe
+   ```
+
+3. **Environment variable** (persistent):
+   ```bash
+   export MOVODORO_ACTIVE_SUBSET=back-safe
+   ```
+
+Command flags take precedence over environment variables.
+
+### Subset Behavior
+
+- **Filters are intersections**: Subset + other filters (tags, RPE) = only movos matching ALL criteria
+- **Respects dailies**: Daily minimums (`min_per_day`) still prioritized, but only those within the subset
+- **View available subsets**: Run `movodoro subsets` to see all configured subsets
+- **Check affected dailies**: Run `movodoro everyday` to see which daily movos are excluded by active subset
+
+**Example:**
+```bash
+# Set back-safe subset
+export MOVODORO_ACTIVE_SUBSET=back-safe
+
+# Check which everyday movos are available
+movodoro everyday
+# Output:
+#   ✅ Meditation (in subset)
+#   ✅ OS Resets (in subset)
+#   ⚠️  2 everyday movos excluded by active subset
+
+# Interactive mode will only select from back-safe movos
+movodoro
+```
+
 ## Command Reference
 
 ### Get a Snack
@@ -238,6 +319,7 @@ movodoro get [options]
 - `-M, --max-duration MINS` - Maximum duration
 - `-r, --min-rpe RPE` - Minimum RPE (for intense work)
 - `-R, --max-rpe RPE` - Maximum RPE (for recovery)
+- `--subset NAME` - Use a named subset from subsets.yaml
 
 **Examples:**
 ```bash
@@ -350,6 +432,14 @@ Summary: 1/2 everyday snacks completed
 ```bash
 movodoro version
 ```
+
+### List Available Subsets
+
+```bash
+movodoro subsets
+```
+
+Shows all subsets configured in `subsets.yaml` with their descriptions and movo counts.
 
 ## How Selection Works
 
@@ -475,9 +565,10 @@ Rate of Perceived Exertion (1-10):
 4. **Skip dailies when pressed for time**: Use `[x]` to grab a quick 3-min snack when you can't do your 10-min meditation
 5. **Check your progress**: Run `movodoro everyday` to see what you've completed
 6. **Recovery in afternoon**: Let auto-recovery kick in when you hit RPE 30, or manually use `movodoro get -R 2`
-7. **Track in markdown**: Use `movodoro report --md -v >> workout-log.md` to append detailed logs to your training journal
-8. **Search by tags**: Use hashtags in verbose reports to quickly find workouts (search #kbx for kettlebell, #strengthx for strength training)
-9. **Non-interactive for scripts**: Use `movodoro get -t kbx` for automation or specific filters
+7. **Create subsets for life situations**: Set up `back-safe`, `travel`, `low-energy` subsets for different contexts
+8. **Track in markdown**: Use `movodoro report --md -v >> workout-log.md` to append detailed logs to your training journal
+9. **Search by tags**: Use hashtags in verbose reports to quickly find workouts (search #kbx for kettlebell, #strengthx for strength training)
+10. **Non-interactive for scripts**: Use `movodoro get -t kbx` for automation or specific filters
 
 ## Development
 

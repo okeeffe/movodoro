@@ -52,6 +52,7 @@ type FilterOptions struct {
 	MinRPE         int
 	MaxRPE         int
 	SkipMinimums   bool // If true, ignore min_per_day priority
+	Subset         string // Name of subset to restrict selection to
 }
 
 // DailyStats contains statistics for a given day
@@ -62,4 +63,15 @@ type DailyStats struct {
 	TotalRPE      int
 	CompletedSnacks []HistoryEntry
 	SkippedSnacks   []HistoryEntry
+}
+
+// Subset represents a named collection of movo codes
+type Subset struct {
+	Description string   `yaml:"description"`
+	Codes       []string `yaml:"codes"`
+}
+
+// SubsetsConfig represents the subsets.yaml file structure
+type SubsetsConfig struct {
+	Subsets map[string]Subset `yaml:"subsets"`
 }

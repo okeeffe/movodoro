@@ -121,3 +121,25 @@ func (s *Movo) GetDefaultDuration() int {
 	// Round up: (total + 1) / 2
 	return (total + 1) / 2
 }
+
+// LoadSubsets loads the subsets configuration from subsets.yaml
+func LoadSubsets(movosDir string) (*SubsetsConfig, error) {
+	subsetsPath := filepath.Join(movosDir, "subsets.yaml")
+
+	// If file doesn't exist, return empty config (not an error)
+	if _, err := os.Stat(subsetsPath); os.IsNotExist(err) {
+		return &SubsetsConfig{Subsets: make(map[string]Subset)}, nil
+	}
+
+	data, err := os.ReadFile(subsetsPath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading subsets.yaml: %w", err)
+	}
+
+	var config SubsetsConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("error parsing subsets.yaml: %w", err)
+	}
+
+	return &config, nil
+}

@@ -31,6 +31,7 @@ func handleGet(args []string) {
 		minRPE       int
 		maxRPE       int
 		skipMinimums bool
+		subset       string
 	)
 
 	fs.StringVar(&tags, "tags", "", "Filter by tags (comma-separated)")
@@ -48,6 +49,7 @@ func handleGet(args []string) {
 	fs.IntVar(&maxRPE, "max-rpe", 0, "Maximum RPE")
 	fs.IntVar(&maxRPE, "R", 0, "Maximum RPE")
 	fs.BoolVar(&skipMinimums, "skip-minimums", false, "Skip min_per_day priority")
+	fs.StringVar(&subset, "subset", "", "Use a named subset from subsets.yaml")
 
 	fs.Parse(args)
 
@@ -56,6 +58,12 @@ func handleGet(args []string) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading snacks: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Determine active subset: command flag takes precedence over env var
+	activeSubset := subset
+	if activeSubset == "" {
+		activeSubset = appConfig.ActiveSubset
 	}
 
 	// Parse filters
@@ -67,6 +75,7 @@ func handleGet(args []string) {
 		MinRPE:        minRPE,
 		MaxRPE:        maxRPE,
 		SkipMinimums:  skipMinimums,
+		Subset:        activeSubset,
 	}
 
 	if tags != "" {
@@ -588,6 +597,9 @@ func handleConfig(args []string) {
 	fmt.Printf("Logs directory:   %s\n", cfg.LogsDir)
 	fmt.Printf("Current file:     %s\n", cfg.CurrentPath)
 	fmt.Printf("Max daily RPE:    %d\n", cfg.MaxDailyRPE)
+	if cfg.ActiveSubset != "" {
+		fmt.Printf("Active subset:    %s\n", cfg.ActiveSubset)
+	}
 	fmt.Println()
 
 	// Check if movos directory exists
@@ -610,6 +622,8 @@ func handleConfig(args []string) {
 
 // handleEveryday implements the 'everyday' command
 func handleEveryday(args []string) {
+	cfg := appConfig
+
 	// Load snacks
 	snacks, err := LoadSnacks()
 	if err != nil {
@@ -630,8 +644,26 @@ func handleEveryday(args []string) {
 		return
 	}
 
+	// Check for active subset
+	activeSubset := cfg.ActiveSubset
+	var subsetCodes map[string]bool
+	if activeSubset != "" {
+		subsetsConfig, err := LoadSubsets(cfg.MovosDir)
+		if err == nil {
+			if subset, exists := subsetsConfig.Subsets[activeSubset]; exists {
+				subsetCodes = make(map[string]bool)
+				for _, code := range subset.Codes {
+					subsetCodes[code] = true
+				}
+			}
+		}
+	}
+
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Println("  EVERY DAY MOVOS")
+	if activeSubset != "" {
+		fmt.Printf("  (Subset: %s)\n", activeSubset)
+	}
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Println()
 
@@ -649,7 +681,17 @@ func handleEveryday(args []string) {
 	}
 
 	// Display each everyday snack
+	inSubsetCount := 0
+	excludedCount := 0
 	for _, snack := range everydayMovos {
+		// Check if excluded by subset
+		inSubset := subsetCodes == nil || subsetCodes[snack.FullCode]
+		if !inSubset {
+			excludedCount++
+			continue
+		}
+		inSubsetCount++
+
 		count := completedToday[snack.FullCode]
 		status := "❌"
 		if count >= snack.MinPerDay {
@@ -668,18 +710,35 @@ func handleEveryday(args []string) {
 		fmt.Println()
 	}
 
+	if excludedCount > 0 {
+		fmt.Printf("⚠️  %d everyday movos excluded by active subset\n", excludedCount)
+		fmt.Println()
+	}
+
 	completed := 0
 	for _, snack := range everydayMovos {
-		if completedToday[snack.FullCode] > 0 {
+		// Only count if in subset
+		inSubset := subsetCodes == nil || subsetCodes[snack.FullCode]
+		if inSubset && completedToday[snack.FullCode] >= snack.MinPerDay {
 			completed++
 		}
 	}
 
-	fmt.Printf("Summary: %d/%d everyday movos completed\n", completed, len(everydayMovos))
+	fmt.Printf("Summary: %d/%d everyday movos completed", completed, inSubsetCount)
+	if activeSubset != "" {
+		fmt.Printf(" (in subset)")
+	}
+	fmt.Println()
 }
 
 // handleInteractive implements the interactive mode (default when running `movodoro`)
 func handleInteractive(args []string) {
+	// Parse flags for interactive mode
+	fs := flag.NewFlagSet("interactive", flag.ExitOnError)
+	var subset string
+	fs.StringVar(&subset, "subset", "", "Use a named subset from subsets.yaml")
+	fs.Parse(args)
+
 	// Load snacks
 	snacks, err := LoadSnacks()
 	if err != nil {
@@ -687,8 +746,21 @@ func handleInteractive(args []string) {
 		os.Exit(1)
 	}
 
+	// Determine active subset: command flag takes precedence over env var
+	activeSubset := subset
+	if activeSubset == "" {
+		activeSubset = appConfig.ActiveSubset
+	}
+
+	// Display subset info if active
+	if activeSubset != "" {
+		fmt.Printf("🎯 Using subset: %s\n\n", activeSubset)
+	}
+
 	// Start with default filters
-	filters := FilterOptions{}
+	filters := FilterOptions{
+		Subset: activeSubset,
+	}
 
 	for {
 		var snack *Movo
@@ -921,4 +993,44 @@ func handleSkipInteractive(movo *Movo) {
 	}
 
 	fmt.Printf("\n⏭️  Skipped '%s'\n", movo.Title)
+}
+
+// handleSubsets implements the 'subsets' command
+func handleSubsets(args []string) {
+	cfg := appConfig
+
+	// Load subsets configuration
+	subsetsConfig, err := LoadSubsets(cfg.MovosDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading subsets: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(subsetsConfig.Subsets) == 0 {
+		fmt.Println("No subsets configured.")
+		fmt.Println()
+		fmt.Printf("Create a subsets.yaml file in your movos directory:\n")
+		fmt.Printf("  %s/subsets.yaml\n", cfg.MovosDir)
+		return
+	}
+
+	fmt.Println("═══════════════════════════════════════")
+	fmt.Println("  AVAILABLE SUBSETS")
+	fmt.Println("═══════════════════════════════════════")
+	fmt.Println()
+
+	// Display each subset
+	for name, subset := range subsetsConfig.Subsets {
+		fmt.Printf("📦 %s\n", name)
+		if subset.Description != "" {
+			fmt.Printf("   %s\n", subset.Description)
+		}
+		fmt.Printf("   %d movos\n", len(subset.Codes))
+		fmt.Println()
+	}
+
+	fmt.Println("Usage:")
+	fmt.Printf("  movodoro get --subset SUBSET_NAME\n")
+	fmt.Printf("  movodoro --subset SUBSET_NAME          # Interactive mode\n")
+	fmt.Printf("  export MOVODORO_ACTIVE_SUBSET=SUBSET_NAME\n")
 }
